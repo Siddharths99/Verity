@@ -73,31 +73,40 @@ class GeminiService:
             f"Pre-extracted signals: {json.dumps(extracted_signals or {})}"
         )
 
-        try:
-            from google.genai import types
+        models_to_try = [self.model_name]
+        for fallback in ["gemini-3.5-flash-lite", "gemini-3.8-flash", "gemini-3.5-flash"]:
+            if fallback not in models_to_try:
+                models_to_try.append(fallback)
 
-            response = self._client.models.generate_content(
-                model=self.model_name,
-                contents=f"{system_prompt}\n\nUser Context:\n{user_content}",
-                config=types.GenerateContentConfig(
-                    response_mime_type="application/json",
-                    temperature=0.1
+        last_error = None
+        for model in models_to_try:
+            try:
+                from google.genai import types
+
+                response = self._client.models.generate_content(
+                    model=model,
+                    contents=f"{system_prompt}\n\nUser Context:\n{user_content}",
+                    config=types.GenerateContentConfig(
+                        response_mime_type="application/json",
+                        temperature=0.1
+                    )
                 )
-            )
 
-            text_resp = response.text.strip()
-            # Clean possible markdown wrap
-            if text_resp.startswith("```json"):
-                text_resp = text_resp[7:]
-            if text_resp.endswith("```"):
-                text_resp = text_resp[:-3]
+                text_resp = response.text.strip()
+                if text_resp.startswith("```json"):
+                    text_resp = text_resp[7:]
+                if text_resp.endswith("```"):
+                    text_resp = text_resp[:-3]
 
-            parsed = json.loads(text_resp.strip())
-            return parsed
+                parsed = json.loads(text_resp.strip())
+                return parsed
 
-        except Exception as e:
-            logger.error(f"Error calling Gemini API: {e}. Falling back to rule-guided analysis.")
-            return self._heuristic_analysis(content, sender_identity, modality, extracted_signals)
+            except Exception as e:
+                last_error = e
+                logger.warning(f"Gemini model {model} attempt failed: {e}. Trying next fallback...")
+
+        logger.error(f"All Gemini models exhausted. Last error: {last_error}. Falling back to rule-guided analysis.")
+        return self._heuristic_analysis(content, sender_identity, modality, extracted_signals)
 
     async def analyze_media_file(
         self,

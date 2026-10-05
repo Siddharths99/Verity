@@ -14,7 +14,7 @@ class Settings(BaseSettings):
 
     # AI / LLM Configuration
     GEMINI_API_KEY: str = ""
-    GEMINI_MODEL: str = "gemini-2.5-flash"
+    GEMINI_MODEL: str = "gemini-3.5-flash-lite"
 
     # External APIs (Optional)
     GOOGLE_SAFE_BROWSING_KEY: str = ""
@@ -27,7 +27,11 @@ class Settings(BaseSettings):
     UPLOAD_DIR: str = "./uploads"
 
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=(
+            os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), ".env"),
+            os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))), ".env"),
+            ".env",
+        ),
         env_file_encoding="utf-8",
         extra="ignore"
     )
