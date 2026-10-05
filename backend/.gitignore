@@ -1,0 +1,11 @@
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.env
+verity.db
+verity.db-journal
+.pytest_cache/
+uploads/
+*.log

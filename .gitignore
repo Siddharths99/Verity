@@ -1,0 +1,28 @@
+# Environments & Dependencies
+venv/
+env/
+ENV/
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Secrets & Local Config
+.env
+.env.local
+.env.*.local
+
+# Databases & Runtime Data
+*.db
+*.db-journal
+*.sqlite3
+uploads/
+
+# Testing & Logs
+.pytest_cache/
+*.log
+
+# IDE & OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
