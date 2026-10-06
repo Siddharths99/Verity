@@ -1,0 +1,1121 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@layer base {
+  :root {
+    --bg-page: #FAF8F5;
+    --bg-surface: #FFFFFF;
+    --bg-subtle: #F4F1EA;
+    --bg-muted: #EBE7DF;
+    --border-main: #2A2724;
+    --border-subtle: #D5CEBF;
+    --border-strong: #141312;
+    --text-primary: #141312;
+    --text-secondary: #332F2A;
+    --text-muted: #544E45;
+    --accent-main: #C2410C;
+    --accent-hover: #9A3412;
+    --accent-bg: #FFF7ED;
+    --accent-border: #9A3412;
+    --supporting-main: #166534;
+    --supporting-bg: #F0FDF4;
+    --supporting-border: #166534;
+    --alert-main: #991B1B;
+    --alert-bg: #FEF2F2;
+    --alert-border: #991B1B;
+    --warning-main: #92400E;
+    --warning-bg: #FFFBEB;
+    --warning-border: #92400E;
+  }
+
+  .dark,
+  :root.dark,
+  body.theme-dark {
+    --bg-page: #141312;
+    --bg-surface: #1E1D1B;
+    --bg-subtle: #272522;
+    --bg-muted: #383531;
+    --border-main: #383531;
+    --border-subtle: #2C2926;
+    --border-strong: #4F4A44;
+    --text-primary: #FAF7F2;
+    --text-secondary: #C5BFB5;
+    --text-muted: #8E8880;
+    --accent-main: #EA580C;
+    --accent-hover: #C2410C;
+    --accent-bg: #2E1905;
+    --accent-border: #9A3412;
+    --supporting-main: #059669;
+    --supporting-bg: #062C1E;
+    --supporting-border: #065F46;
+    --alert-main: #DC2626;
+    --alert-bg: #330C0C;
+    --alert-border: #7F1D1D;
+    --warning-main: #F59E0B;
+    --warning-bg: #2E1905;
+    --warning-border: #78350F;
+  }
+
+  body {
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    line-height: 1.55;
+    transition: background-color 0.2s ease, color 0.2s ease;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1, h2, h3, h4, .font-heading {
+    font-family: 'Fraunces', Georgia, serif;
+    letter-spacing: -0.015em;
+    font-weight: 700;
+  }
+
+  code, kbd, samp, pre, .font-mono {
+    font-family: 'JetBrains Mono', monospace;
+  }
+}
+
+/* =============================================================
+   ANTI-SLOP SANITIZATION (APPLIES GLOBALLY IN BOTH THEMES)
+   Strips generic tech-demo gradients, neon radar glows & blur blobs
+   ============================================================= */
+[class*="bg-gradient-to"] {
+  background-image: none !important;
+}
+
+.blur-3xl,
+.blur-2xl {
+  display: none !important;
+  opacity: 0 !important;
+}
+
+.animate-ping {
+  display: none !important;
+  animation: none !important;
+  opacity: 0 !important;
+}
+
+.animate-pulse {
+  animation: warm-pulse 2.5s cubic-bezier(0.4, 0, 0.6, 1) infinite !important;
+}
+
+@keyframes warm-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+
+.backdrop-blur-md,
+.backdrop-blur-sm,
+.backdrop-blur-lg,
+.backdrop-blur-xl {
+  backdrop-filter: none !important;
+}
+
+/* Backdrop Modal Overlays */
+.bg-black\/70,
+.bg-black\/60,
+.bg-slate-950\/80,
+.fixed.inset-0.bg-black\/70 {
+  background-color: rgba(18, 17, 16, 0.72) !important;
+}
+
+
+/* =============================================================
+   THEME 1: LIGHT MODE (HIGH-CONTRAST HUMAN-CRAFTED LIGHT SYSTEM)
+   Optimized with bold dark borders, rich dark texts, and dark
+   backgrounds for active/tapped states and prominent controls.
+   ============================================================= */
+body,
+body.theme-light,
+body:not(.theme-dark) {
+  background-color: #FAF8F5 !important;
+  color: #141312 !important;
+}
+
+/* Header in Light Mode with distinct dark bottom line */
+body.theme-light header,
+body:not(.theme-dark) header {
+  background-color: #FAF8F5 !important;
+  border-bottom: 2px solid #2A2724 !important;
+  box-shadow: 0 1px 3px rgba(24, 23, 22, 0.08) !important;
+}
+
+/* Light Mode Desktop Navigation Links */
+body.theme-light header nav button,
+body:not(.theme-dark) header nav button {
+  color: #332F2A !important;
+  font-weight: 600 !important;
+  border: 1.5px solid transparent !important;
+  border-radius: 8px !important;
+  transition: all 0.15s ease !important;
+}
+
+body.theme-light header nav button:hover,
+body:not(.theme-dark) header nav button:hover {
+  background-color: #EBE7DF !important;
+  color: #141312 !important;
+  border-color: #2A2724 !important;
+}
+
+body.theme-light header nav button:active,
+body:not(.theme-dark) header nav button:active {
+  background-color: #1E1D1B !important;
+  color: #FFFFFF !important;
+  border-color: #1E1D1B !important;
+}
+
+/* Active Nav Link (Dark colour as behind works in light mode) */
+body.theme-light header nav button.bg-cyan-950\/50,
+body.theme-light header nav button[class*="bg-cyan-950"],
+body:not(.theme-dark) header nav button.bg-cyan-950\/50,
+body:not(.theme-dark) header nav button[class*="bg-cyan-950"] {
+  background-color: #1E1D1B !important;
+  color: #FFFFFF !important;
+  border: 1.5px solid #1E1D1B !important;
+  font-weight: 700 !important;
+  box-shadow: 0 2px 4px rgba(24, 23, 22, 0.15) !important;
+}
+
+body.theme-light header nav button.bg-cyan-950\/50 *,
+body:not(.theme-dark) header nav button.bg-cyan-950\/50 * {
+  color: #FFFFFF !important;
+}
+
+/* Light Mode Typography Hierarchy (Crisp, High-Contrast Dark Text) */
+body.theme-light h1,
+body.theme-light h2,
+body.theme-light h3,
+body.theme-light h4,
+body:not(.theme-dark) h1,
+body:not(.theme-dark) h2,
+body:not(.theme-dark) h3,
+body:not(.theme-dark) h4 {
+  color: #11100F !important;
+  font-weight: 700 !important;
+}
+
+body.theme-light .text-white,
+body.theme-light .text-slate-100,
+body.theme-light .text-slate-200,
+body:not(.theme-dark) .text-white,
+body:not(.theme-dark) .text-slate-100,
+body:not(.theme-dark) .text-slate-200 {
+  color: #141312 !important;
+}
+
+body.theme-light .text-slate-300,
+body.theme-light .text-slate-400,
+body:not(.theme-dark) .text-slate-300,
+body:not(.theme-dark) .text-slate-400 {
+  color: #332F2A !important;
+  font-weight: 500 !important;
+}
+
+body.theme-light .text-slate-500,
+body.theme-light .text-slate-600,
+body:not(.theme-dark) .text-slate-500,
+body:not(.theme-dark) .text-slate-600 {
+  color: #544E45 !important;
+}
+
+/* Light Mode Elevated Primary Cards & Containers (With Strong Dark Borders) */
+body.theme-light .bg-slate-950,
+body.theme-light .bg-slate-950\/95,
+body.theme-light .bg-slate-950\/90,
+body.theme-light .bg-slate-950\/80,
+body.theme-light .bg-slate-950\/70,
+body.theme-light .bg-slate-950\/60,
+body.theme-light .bg-slate-950\/40,
+body.theme-light .bg-slate-900,
+body.theme-light .bg-slate-900\/95,
+body.theme-light .bg-slate-900\/90,
+body.theme-light .bg-slate-900\/80,
+body.theme-light .bg-slate-900\/70,
+body.theme-light .bg-slate-900\/60,
+body.theme-light .bg-slate-900\/40,
+body:not(.theme-dark) .bg-slate-950,
+body:not(.theme-dark) .bg-slate-950\/95,
+body:not(.theme-dark) .bg-slate-950\/90,
+body:not(.theme-dark) .bg-slate-950\/80,
+body:not(.theme-dark) .bg-slate-950\/70,
+body:not(.theme-dark) .bg-slate-950\/60,
+body:not(.theme-dark) .bg-slate-950\/40,
+body:not(.theme-dark) .bg-slate-900,
+body:not(.theme-dark) .bg-slate-900\/95,
+body:not(.theme-dark) .bg-slate-900\/90,
+body:not(.theme-dark) .bg-slate-900\/80,
+body:not(.theme-dark) .bg-slate-900\/70,
+body:not(.theme-dark) .bg-slate-900\/60,
+body:not(.theme-dark) .bg-slate-900\/40 {
+  background-color: #FFFFFF !important;
+}
+
+/* Light Mode Inset Cards & Telemetry Panels */
+body.theme-light .bg-slate-800,
+body.theme-light .bg-slate-800\/90,
+body.theme-light .bg-slate-800\/80,
+body.theme-light .bg-slate-800\/60,
+body.theme-light .bg-slate-800\/50,
+body.theme-light .bg-slate-800\/40,
+body:not(.theme-dark) .bg-slate-800,
+body:not(.theme-dark) .bg-slate-800\/90,
+body:not(.theme-dark) .bg-slate-800\/80,
+body:not(.theme-dark) .bg-slate-800\/60,
+body:not(.theme-dark) .bg-slate-800\/50,
+body:not(.theme-dark) .bg-slate-800\/40 {
+  background-color: #F4F1EA !important;
+}
+
+/* Light Mode Borders (Crisp Dark Borders For High Visibility) */
+body.theme-light .border-slate-900,
+body.theme-light .border-slate-800,
+body.theme-light .border-slate-800\/90,
+body.theme-light .border-slate-800\/80,
+body.theme-light .border-slate-800\/60,
+body.theme-light .border-slate-700,
+body.theme-light .border-slate-700\/80,
+body.theme-light .border-slate-700\/60,
+body.theme-light .border-slate-700\/40,
+body:not(.theme-dark) .border-slate-900,
+body:not(.theme-dark) .border-slate-800,
+body:not(.theme-dark) .border-slate-800\/90,
+body:not(.theme-dark) .border-slate-800\/80,
+body:not(.theme-dark) .border-slate-800\/60,
+body:not(.theme-dark) .border-slate-700,
+body:not(.theme-dark) .border-slate-700\/80,
+body:not(.theme-dark) .border-slate-700\/60,
+body:not(.theme-dark) .border-slate-700\/40 {
+  border-color: #2A2724 !important;
+}
+
+/* Light Mode Shadows with crisp tactile definition */
+body.theme-light .shadow-2xl,
+body.theme-light .shadow-xl,
+body.theme-light .shadow-lg,
+body.theme-light .shadow-md,
+body.theme-light .shadow-sm,
+body:not(.theme-dark) .shadow-2xl,
+body:not(.theme-dark) .shadow-xl,
+body:not(.theme-dark) .shadow-lg,
+body:not(.theme-dark) .shadow-md,
+body:not(.theme-dark) .shadow-sm {
+  box-shadow: 0 2px 5px rgba(24, 23, 22, 0.08), 0 1px 2px rgba(24, 23, 22, 0.04) !important;
+}
+
+/* Light Mode Accent: Terracotta */
+body.theme-light .text-cyan-400,
+body.theme-light .text-cyan-300,
+body.theme-light .text-cyan-200,
+body.theme-light .text-blue-400,
+body.theme-light .text-blue-300,
+body:not(.theme-dark) .text-cyan-400,
+body:not(.theme-dark) .text-cyan-300,
+body:not(.theme-dark) .text-cyan-200,
+body:not(.theme-dark) .text-blue-400,
+body:not(.theme-dark) .text-blue-300 {
+  color: #C2410C !important;
+  font-weight: 600 !important;
+}
+
+/* Light Mode Primary Action Buttons (Solid Terracotta with Dark Border and White Text) */
+body.theme-light .bg-cyan-400,
+body.theme-light .bg-cyan-500,
+body.theme-light .bg-blue-600,
+body:not(.theme-dark) .bg-cyan-400,
+body:not(.theme-dark) .bg-cyan-500,
+body:not(.theme-dark) .bg-blue-600 {
+  background-color: #C2410C !important;
+  color: #FFFFFF !important;
+  border: 1.5px solid #1E1D1B !important;
+  box-shadow: 0 2px 4px rgba(24, 23, 22, 0.15) !important;
+  font-weight: 700 !important;
+}
+
+body.theme-light .bg-cyan-400 *,
+body.theme-light .bg-cyan-500 *,
+body.theme-light .bg-blue-600 *,
+body:not(.theme-dark) .bg-cyan-400 *,
+body:not(.theme-dark) .bg-cyan-500 *,
+body:not(.theme-dark) .bg-blue-600 * {
+  color: #FFFFFF !important;
+  stroke: #FFFFFF !important;
+}
+
+/* When Tapped or Hovered: Dark Colour as Behind Works in Light Mode */
+body.theme-light .bg-cyan-400:hover,
+body.theme-light .bg-cyan-400:active,
+body.theme-light .bg-cyan-500:hover,
+body.theme-light .bg-cyan-500:active,
+body.theme-light .hover\:bg-cyan-300:hover,
+body.theme-light .hover\:bg-cyan-200:hover,
+body:not(.theme-dark) .bg-cyan-400:hover,
+body:not(.theme-dark) .bg-cyan-400:active,
+body:not(.theme-dark) .bg-cyan-500:hover,
+body:not(.theme-dark) .bg-cyan-500:active,
+body:not(.theme-dark) .hover\:bg-cyan-300:hover,
+body:not(.theme-dark) .hover\:bg-cyan-200:hover {
+  background-color: #1E1D1B !important;
+  color: #FFFFFF !important;
+  border-color: #000000 !important;
+}
+
+body.theme-light .bg-cyan-400:active *,
+body.theme-light .bg-cyan-500:active *,
+body:not(.theme-dark) .bg-cyan-400:active *,
+body:not(.theme-dark) .bg-cyan-500:active * {
+  color: #FFFFFF !important;
+  stroke: #FFFFFF !important;
+}
+
+/* Light Mode Secondary & Ghost Buttons */
+body.theme-light button.bg-slate-800,
+body:not(.theme-dark) button.bg-slate-800 {
+  background-color: #FFFFFF !important;
+  color: #141312 !important;
+  border: 1.5px solid #2A2724 !important;
+  font-weight: 600 !important;
+}
+
+body.theme-light button.bg-slate-800:hover,
+body:not(.theme-dark) button.bg-slate-800:hover {
+  background-color: #F4F1EA !important;
+  color: #141312 !important;
+  border-color: #141312 !important;
+}
+
+body.theme-light button.bg-slate-800:active,
+body:not(.theme-dark) button.bg-slate-800:active {
+  background-color: #1E1D1B !important;
+  color: #FFFFFF !important;
+  border-color: #1E1D1B !important;
+}
+
+/* Segmented Filter Control Bar (RecentAnalysisTable, HistoryView) */
+body.theme-light .p-0\.5.bg-slate-900\/90,
+body:not(.theme-dark) .p-0\.5.bg-slate-900\/90 {
+  background-color: #F4F1EA !important;
+  border: 1.5px solid #2A2724 !important;
+}
+
+body.theme-light .p-0\.5.bg-slate-900\/90 button,
+body:not(.theme-dark) .p-0\.5.bg-slate-900\/90 button {
+  color: #332F2A !important;
+  font-weight: 600 !important;
+}
+
+body.theme-light .p-0\.5.bg-slate-900\/90 button:hover,
+body:not(.theme-dark) .p-0\.5.bg-slate-900\/90 button:hover {
+  color: #141312 !important;
+  background-color: #E5E0D6 !important;
+}
+
+body.theme-light .p-0\.5.bg-slate-900\/90 button.bg-slate-800,
+body:not(.theme-dark) .p-0\.5.bg-slate-900\/90 button.bg-slate-800 {
+  background-color: #1E1D1B !important;
+  color: #FFFFFF !important;
+  border: 1px solid #1E1D1B !important;
+  font-weight: 700 !important;
+}
+
+/* Date Range Buttons ('Today', '7 Days', '30 Days') */
+body.theme-light button.bg-slate-950\/60,
+body:not(.theme-dark) button.bg-slate-950\/60 {
+  background-color: #FFFFFF !important;
+  color: #141312 !important;
+  border: 1.5px solid #2A2724 !important;
+}
+
+body.theme-light button.bg-slate-950\/60:hover,
+body.theme-light button.bg-slate-950\/60:active,
+body:not(.theme-dark) button.bg-slate-950\/60:hover,
+body:not(.theme-dark) button.bg-slate-950\/60:active {
+  background-color: #1E1D1B !important;
+  color: #FFFFFF !important;
+  border-color: #1E1D1B !important;
+}
+
+/* Status Action Buttons in Tables ("Verify", "Block", "Review", "Safe") */
+body.theme-light table td button[class*="bg-cyan-950"],
+body:not(.theme-dark) table td button[class*="bg-cyan-950"] {
+  background-color: #FFF7ED !important;
+  color: #9A3412 !important;
+  border: 1.5px solid #9A3412 !important;
+  font-weight: 700 !important;
+}
+
+body.theme-light table td button[class*="bg-cyan-950"]:hover,
+body.theme-light table td button[class*="bg-cyan-950"]:active,
+body:not(.theme-dark) table td button[class*="bg-cyan-950"]:hover,
+body:not(.theme-dark) table td button[class*="bg-cyan-950"]:active {
+  background-color: #9A3412 !important;
+  color: #FFFFFF !important;
+  border-color: #1E1D1B !important;
+}
+
+body.theme-light table td button[class*="bg-red-950"],
+body:not(.theme-dark) table td button[class*="bg-red-950"] {
+  background-color: #FEF2F2 !important;
+  color: #991B1B !important;
+  border: 1.5px solid #991B1B !important;
+  font-weight: 700 !important;
+}
+
+body.theme-light table td button[class*="bg-red-950"]:hover,
+body.theme-light table td button[class*="bg-red-950"]:active,
+body:not(.theme-dark) table td button[class*="bg-red-950"]:hover,
+body:not(.theme-dark) table td button[class*="bg-red-950"]:active {
+  background-color: #991B1B !important;
+  color: #FFFFFF !important;
+  border-color: #1E1D1B !important;
+}
+
+body.theme-light table td button[class*="bg-amber-950"],
+body:not(.theme-dark) table td button[class*="bg-amber-950"] {
+  background-color: #FFFBEB !important;
+  color: #92400E !important;
+  border: 1.5px solid #92400E !important;
+  font-weight: 700 !important;
+}
+
+body.theme-light table td button[class*="bg-amber-950"]:hover,
+body.theme-light table td button[class*="bg-amber-950"]:active,
+body:not(.theme-dark) table td button[class*="bg-amber-950"]:hover,
+body:not(.theme-dark) table td button[class*="bg-amber-950"]:active {
+  background-color: #92400E !important;
+  color: #FFFFFF !important;
+  border-color: #1E1D1B !important;
+}
+
+body.theme-light table td button[class*="bg-emerald-950"],
+body:not(.theme-dark) table td button[class*="bg-emerald-950"] {
+  background-color: #F0FDF4 !important;
+  color: #166534 !important;
+  border: 1.5px solid #166534 !important;
+  font-weight: 700 !important;
+}
+
+body.theme-light table td button[class*="bg-emerald-950"]:hover,
+body.theme-light table td button[class*="bg-emerald-950"]:active,
+body:not(.theme-dark) table td button[class*="bg-emerald-950"]:hover,
+body:not(.theme-dark) table td button[class*="bg-emerald-950"]:active {
+  background-color: #166534 !important;
+  color: #FFFFFF !important;
+  border-color: #1E1D1B !important;
+}
+
+/* Light Mode Supporting Green (Verified, Protected, Safe) */
+body.theme-light .text-emerald-400,
+body.theme-light .text-emerald-300,
+body.theme-light .text-emerald-200,
+body.theme-light .text-green-400,
+body:not(.theme-dark) .text-emerald-400,
+body:not(.theme-dark) .text-emerald-300,
+body:not(.theme-dark) .text-emerald-200,
+body:not(.theme-dark) .text-green-400 {
+  color: #166534 !important;
+  font-weight: 600 !important;
+}
+
+body.theme-light .bg-emerald-950,
+body.theme-light .bg-emerald-950\/80,
+body.theme-light .bg-emerald-950\/70,
+body.theme-light .bg-emerald-950\/60,
+body.theme-light .bg-emerald-950\/50,
+body.theme-light .bg-emerald-950\/40,
+body.theme-light .bg-emerald-950\/30,
+body.theme-light .bg-green-950,
+body:not(.theme-dark) .bg-emerald-950,
+body:not(.theme-dark) .bg-emerald-950\/80,
+body:not(.theme-dark) .bg-emerald-950\/70,
+body:not(.theme-dark) .bg-emerald-950\/60,
+body:not(.theme-dark) .bg-emerald-950\/50,
+body:not(.theme-dark) .bg-emerald-950\/40,
+body:not(.theme-dark) .bg-emerald-950\/30,
+body:not(.theme-dark) .bg-green-950 {
+  background-color: #F0FDF4 !important;
+  border-color: #166534 !important;
+}
+
+body.theme-light .border-emerald-500,
+body.theme-light .border-emerald-500\/50,
+body.theme-light .border-emerald-500\/40,
+body.theme-light .border-emerald-500\/30,
+body.theme-light .border-emerald-400,
+body:not(.theme-dark) .border-emerald-500,
+body:not(.theme-dark) .border-emerald-500\/50,
+body:not(.theme-dark) .border-emerald-500\/40,
+body:not(.theme-dark) .border-emerald-500\/30,
+body:not(.theme-dark) .border-emerald-400 {
+  border-color: #166534 !important;
+}
+
+/* Light Mode Alert Rust Red */
+body.theme-light .text-red-400,
+body.theme-light .text-red-300,
+body.theme-light .text-red-200,
+body:not(.theme-dark) .text-red-400,
+body:not(.theme-dark) .text-red-300,
+body:not(.theme-dark) .text-red-200 {
+  color: #991B1B !important;
+  font-weight: 600 !important;
+}
+
+body.theme-light .bg-red-950,
+body.theme-light .bg-red-950\/80,
+body.theme-light .bg-red-950\/70,
+body.theme-light .bg-red-950\/60,
+body.theme-light .bg-red-950\/50,
+body.theme-light .bg-red-950\/40,
+body.theme-light .bg-red-950\/30,
+body:not(.theme-dark) .bg-red-950,
+body:not(.theme-dark) .bg-red-950\/80,
+body:not(.theme-dark) .bg-red-950\/70,
+body:not(.theme-dark) .bg-red-950\/60,
+body:not(.theme-dark) .bg-red-950\/50,
+body:not(.theme-dark) .bg-red-950\/40,
+body:not(.theme-dark) .bg-red-950\/30 {
+  background-color: #FEF2F2 !important;
+  border-color: #991B1B !important;
+}
+
+body.theme-light .border-red-500,
+body.theme-light .border-red-500\/60,
+body.theme-light .border-red-500\/50,
+body.theme-light .border-red-500\/40,
+body.theme-light .border-red-500\/30,
+body.theme-light .border-red-400,
+body:not(.theme-dark) .border-red-500,
+body:not(.theme-dark) .border-red-500\/60,
+body:not(.theme-dark) .border-red-500\/50,
+body:not(.theme-dark) .border-red-500\/40,
+body:not(.theme-dark) .border-red-500\/30,
+body:not(.theme-dark) .border-red-400 {
+  border-color: #991B1B !important;
+}
+
+body.theme-light .bg-red-600,
+body.theme-light .bg-red-500,
+body:not(.theme-dark) .bg-red-600,
+body:not(.theme-dark) .bg-red-500 {
+  background-color: #991B1B !important;
+  color: #FFFFFF !important;
+  border: 1.5px solid #1E1D1B !important;
+}
+
+body.theme-light .bg-red-600 *,
+body.theme-light .bg-red-500 *,
+body:not(.theme-dark) .bg-red-600 *,
+body:not(.theme-dark) .bg-red-500 * {
+  color: #FFFFFF !important;
+  stroke: #FFFFFF !important;
+}
+
+/* Light Mode Warning Amber */
+body.theme-light .text-amber-400,
+body.theme-light .text-amber-300,
+body.theme-light .text-orange-400,
+body:not(.theme-dark) .text-amber-400,
+body:not(.theme-dark) .text-amber-300,
+body:not(.theme-dark) .text-orange-400 {
+  color: #92400E !important;
+  font-weight: 600 !important;
+}
+
+body.theme-light .bg-amber-950,
+body.theme-light .bg-amber-950\/80,
+body.theme-light .bg-amber-950\/70,
+body.theme-light .bg-amber-950\/60,
+body.theme-light .bg-amber-950\/50,
+body.theme-light .bg-amber-950\/40,
+body.theme-light .bg-amber-950\/30,
+body.theme-light .bg-orange-950,
+body.theme-light .bg-orange-950\/70,
+body:not(.theme-dark) .bg-amber-950,
+body:not(.theme-dark) .bg-amber-950\/80,
+body:not(.theme-dark) .bg-amber-950\/70,
+body:not(.theme-dark) .bg-amber-950\/60,
+body:not(.theme-dark) .bg-amber-950\/50,
+body:not(.theme-dark) .bg-amber-950\/40,
+body:not(.theme-dark) .bg-amber-950\/30,
+body:not(.theme-dark) .bg-orange-950,
+body:not(.theme-dark) .bg-orange-950\/70 {
+  background-color: #FFFBEB !important;
+  border-color: #92400E !important;
+}
+
+body.theme-light .border-amber-500,
+body.theme-light .border-amber-500\/50,
+body.theme-light .border-amber-500\/40,
+body.theme-light .border-amber-500\/30,
+body.theme-light .border-orange-500\/30,
+body:not(.theme-dark) .border-amber-500,
+body:not(.theme-dark) .border-amber-500\/50,
+body:not(.theme-dark) .border-amber-500\/40,
+body:not(.theme-dark) .border-amber-500\/30,
+body:not(.theme-dark) .border-orange-500\/30 {
+  border-color: #92400E !important;
+}
+
+/* Light Mode Secondary Purple / Indigo */
+body.theme-light .text-purple-400,
+body.theme-light .text-indigo-400,
+body:not(.theme-dark) .text-purple-400,
+body:not(.theme-dark) .text-indigo-400 {
+  color: #5B4866 !important;
+  font-weight: 600 !important;
+}
+
+body.theme-light .bg-purple-950,
+body.theme-light .bg-purple-950\/70,
+body.theme-light .bg-purple-950\/60,
+body.theme-light .bg-purple-950\/40,
+body.theme-light .bg-indigo-950,
+body.theme-light .bg-indigo-950\/60,
+body.theme-light .bg-indigo-950\/40,
+body:not(.theme-dark) .bg-purple-950,
+body:not(.theme-dark) .bg-purple-950\/70,
+body:not(.theme-dark) .bg-purple-950\/60,
+body:not(.theme-dark) .bg-purple-950\/40,
+body:not(.theme-dark) .bg-indigo-950,
+body:not(.theme-dark) .bg-indigo-950\/60,
+body:not(.theme-dark) .bg-indigo-950\/40 {
+  background-color: #F5F2F8 !important;
+  border-color: #5B4866 !important;
+}
+
+/* Light Mode Form Controls (With Strong 1.5px Dark Borders) */
+body.theme-light input,
+body.theme-light textarea,
+body.theme-light select,
+body:not(.theme-dark) input,
+body:not(.theme-dark) textarea,
+body:not(.theme-dark) select {
+  background-color: #FFFFFF !important;
+  color: #141312 !important;
+  border: 1.5px solid #2A2724 !important;
+  border-radius: 8px !important;
+  font-weight: 500 !important;
+}
+
+body.theme-light input::placeholder,
+body.theme-light textarea::placeholder,
+body:not(.theme-dark) input::placeholder,
+body:not(.theme-dark) textarea::placeholder {
+  color: #544E45 !important;
+}
+
+body.theme-light input:focus,
+body.theme-light textarea:focus,
+body.theme-light select:focus,
+body:not(.theme-dark) input:focus,
+body:not(.theme-dark) textarea:focus,
+body:not(.theme-dark) select:focus {
+  border-color: #1E1D1B !important;
+  outline: 2px solid #1E1D1B !important;
+  outline-offset: 1px !important;
+}
+
+/* Light Mode Tables & Footer */
+body.theme-light table,
+body:not(.theme-dark) table {
+  background-color: #FFFFFF !important;
+  border-color: #2A2724 !important;
+}
+
+body.theme-light thead,
+body:not(.theme-dark) thead {
+  background-color: #F4F1EA !important;
+  border-bottom: 2px solid #2A2724 !important;
+  color: #141312 !important;
+  font-weight: 700 !important;
+}
+
+body.theme-light tr,
+body:not(.theme-dark) tr {
+  border-bottom-color: #D5CEBF !important;
+}
+
+body.theme-light tr:hover,
+body:not(.theme-dark) tr:hover {
+  background-color: #EBE7DF !important;
+}
+
+body.theme-light footer,
+body:not(.theme-dark) footer {
+  background-color: #F4F1EA !important;
+  border-top: 2px solid #2A2724 !important;
+  color: #332F2A !important;
+}
+
+body.theme-light ::-webkit-scrollbar-thumb,
+body:not(.theme-dark) ::-webkit-scrollbar-thumb {
+  background: #2A2724;
+  border-radius: 4px;
+}
+
+
+/* =============================================================
+   THEME 2: DARK MODE (INVERTED WARM OBSIDIAN & CHARCOAL PALETTE)
+   UNTOUCHED & PRESERVED AS CONFIRMED BY USER
+   ============================================================= */
+body.theme-dark {
+  background-color: #141312 !important;
+  color: #F5F2EB !important;
+}
+
+body.theme-dark header {
+  background-color: #141312 !important;
+  border-color: #383531 !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3) !important;
+}
+
+/* Dark Mode Typography */
+body.theme-dark h1,
+body.theme-dark h2,
+body.theme-dark h3,
+body.theme-dark h4 {
+  color: #FAF7F2 !important;
+}
+
+body.theme-dark .text-white,
+body.theme-dark .text-slate-100,
+body.theme-dark .text-slate-200 {
+  color: #F5F2EB !important;
+}
+
+body.theme-dark .text-slate-300,
+body.theme-dark .text-slate-400 {
+  color: #C5BFB5 !important;
+}
+
+body.theme-dark .text-slate-500,
+body.theme-dark .text-slate-600 {
+  color: #8E8880 !important;
+}
+
+/* Dark Mode Elevated Primary Surfaces & Cards */
+body.theme-dark .bg-slate-950,
+body.theme-dark .bg-slate-950\/95,
+body.theme-dark .bg-slate-950\/90,
+body.theme-dark .bg-slate-950\/80,
+body.theme-dark .bg-slate-950\/70,
+body.theme-dark .bg-slate-950\/60,
+body.theme-dark .bg-slate-950\/40,
+body.theme-dark .bg-slate-900,
+body.theme-dark .bg-slate-900\/95,
+body.theme-dark .bg-slate-900\/90,
+body.theme-dark .bg-slate-900\/80,
+body.theme-dark .bg-slate-900\/70,
+body.theme-dark .bg-slate-900\/60,
+body.theme-dark .bg-slate-900\/40 {
+  background-color: #1E1D1B !important;
+}
+
+/* Dark Mode Inset Cards & Secondary Panels */
+body.theme-dark .bg-slate-800,
+body.theme-dark .bg-slate-800\/90,
+body.theme-dark .bg-slate-800\/80,
+body.theme-dark .bg-slate-800\/60,
+body.theme-dark .bg-slate-800\/50,
+body.theme-dark .bg-slate-800\/40 {
+  background-color: #272522 !important;
+}
+
+/* Dark Mode Tactile Borders */
+body.theme-dark .border-slate-900,
+body.theme-dark .border-slate-800,
+body.theme-dark .border-slate-800\/90,
+body.theme-dark .border-slate-800\/80,
+body.theme-dark .border-slate-800\/60,
+body.theme-dark .border-slate-700,
+body.theme-dark .border-slate-700\/80,
+body.theme-dark .border-slate-700\/60,
+body.theme-dark .border-slate-700\/40 {
+  border-color: #383531 !important;
+}
+
+/* Dark Mode Terracotta Accent (Luminous warm amber-terracotta for dark background contrast) */
+body.theme-dark .text-cyan-400,
+body.theme-dark .text-cyan-300,
+body.theme-dark .text-cyan-200,
+body.theme-dark .text-blue-400,
+body.theme-dark .text-blue-300 {
+  color: #FB923C !important;
+}
+
+body.theme-dark .bg-cyan-950,
+body.theme-dark .bg-cyan-950\/80,
+body.theme-dark .bg-cyan-950\/70,
+body.theme-dark .bg-cyan-950\/60,
+body.theme-dark .bg-cyan-950\/50,
+body.theme-dark .bg-cyan-950\/40,
+body.theme-dark .bg-cyan-950\/30,
+body.theme-dark .bg-blue-950,
+body.theme-dark .bg-blue-950\/60,
+body.theme-dark .bg-blue-950\/40 {
+  background-color: #341B0F !important;
+  border-color: #9A3412 !important;
+}
+
+body.theme-dark .border-cyan-500,
+body.theme-dark .border-cyan-500\/50,
+body.theme-dark .border-cyan-500\/40,
+body.theme-dark .border-cyan-500\/30,
+body.theme-dark .border-cyan-400,
+body.theme-dark .border-cyan-400\/80,
+body.theme-dark .border-cyan-400\/60,
+body.theme-dark .border-blue-500,
+body.theme-dark .border-blue-500\/40 {
+  border-color: #9A3412 !important;
+}
+
+/* Dark Mode CTA & Primary Action Buttons */
+body.theme-dark .bg-cyan-400,
+body.theme-dark .bg-cyan-500,
+body.theme-dark .bg-blue-600 {
+  background-color: #EA580C !important;
+  color: #FFFFFF !important;
+}
+
+body.theme-dark .bg-cyan-400 *,
+body.theme-dark .bg-cyan-500 *,
+body.theme-dark .bg-blue-600 * {
+  color: #FFFFFF !important;
+  stroke: #FFFFFF !important;
+}
+
+body.theme-dark .hover\:bg-cyan-300:hover,
+body.theme-dark .hover\:bg-cyan-200:hover {
+  background-color: #C2410C !important;
+  color: #FFFFFF !important;
+}
+
+/* Dark Mode Supporting Sage Green */
+body.theme-dark .text-emerald-400,
+body.theme-dark .text-emerald-300,
+body.theme-dark .text-emerald-200,
+body.theme-dark .text-green-400 {
+  color: #4ADE80 !important;
+}
+
+body.theme-dark .bg-emerald-950,
+body.theme-dark .bg-emerald-950\/80,
+body.theme-dark .bg-emerald-950\/70,
+body.theme-dark .bg-emerald-950\/60,
+body.theme-dark .bg-emerald-950\/50,
+body.theme-dark .bg-emerald-950\/40,
+body.theme-dark .bg-emerald-950\/30,
+body.theme-dark .bg-green-950 {
+  background-color: #062C1E !important;
+  border-color: #065F46 !important;
+}
+
+body.theme-dark .border-emerald-500,
+body.theme-dark .border-emerald-500\/50,
+body.theme-dark .border-emerald-500\/40,
+body.theme-dark .border-emerald-500\/30,
+body.theme-dark .border-emerald-400 {
+  border-color: #065F46 !important;
+}
+
+body.theme-dark .bg-emerald-500,
+body.theme-dark .bg-emerald-600 {
+  background-color: #059669 !important;
+  color: #FFFFFF !important;
+}
+
+body.theme-dark .bg-emerald-500 *,
+body.theme-dark .bg-emerald-600 * {
+  color: #FFFFFF !important;
+  stroke: #FFFFFF !important;
+}
+
+/* Dark Mode Alert Coral Red */
+body.theme-dark .text-red-400,
+body.theme-dark .text-red-300,
+body.theme-dark .text-red-200 {
+  color: #F87171 !important;
+}
+
+body.theme-dark .bg-red-950,
+body.theme-dark .bg-red-950\/80,
+body.theme-dark .bg-red-950\/70,
+body.theme-dark .bg-red-950\/60,
+body.theme-dark .bg-red-950\/50,
+body.theme-dark .bg-red-950\/40,
+body.theme-dark .bg-red-950\/30 {
+  background-color: #330C0C !important;
+  border-color: #7F1D1D !important;
+}
+
+body.theme-dark .border-red-500,
+body.theme-dark .border-red-500\/60,
+body.theme-dark .border-red-500\/50,
+body.theme-dark .border-red-500\/40,
+body.theme-dark .border-red-500\/30,
+body.theme-dark .border-red-400 {
+  border-color: #7F1D1D !important;
+}
+
+body.theme-dark .bg-red-600,
+body.theme-dark .bg-red-500 {
+  background-color: #DC2626 !important;
+  color: #FFFFFF !important;
+}
+
+body.theme-dark .bg-red-600 *,
+body.theme-dark .bg-red-500 * {
+  color: #FFFFFF !important;
+  stroke: #FFFFFF !important;
+}
+
+/* Dark Mode Warning Amber */
+body.theme-dark .text-amber-400,
+body.theme-dark .text-amber-300,
+body.theme-dark .text-orange-400 {
+  color: #FBBF24 !important;
+}
+
+body.theme-dark .bg-amber-950,
+body.theme-dark .bg-amber-950\/80,
+body.theme-dark .bg-amber-950\/70,
+body.theme-dark .bg-amber-950\/60,
+body.theme-dark .bg-amber-950\/50,
+body.theme-dark .bg-amber-950\/40,
+body.theme-dark .bg-amber-950\/30,
+body.theme-dark .bg-orange-950,
+body.theme-dark .bg-orange-950\/70 {
+  background-color: #2E1905 !important;
+  border-color: #78350F !important;
+}
+
+body.theme-dark .border-amber-500,
+body.theme-dark .border-amber-500\/50,
+body.theme-dark .border-amber-500\/40,
+body.theme-dark .border-amber-500\/30,
+body.theme-dark .border-orange-500\/30 {
+  border-color: #78350F !important;
+}
+
+/* Dark Mode Secondary Purple / Indigo */
+body.theme-dark .text-purple-400,
+body.theme-dark .text-indigo-400 {
+  color: #C4B5FD !important;
+}
+
+body.theme-dark .bg-purple-950,
+body.theme-dark .bg-purple-950\/70,
+body.theme-dark .bg-purple-950\/60,
+body.theme-dark .bg-purple-950\/40,
+body.theme-dark .bg-indigo-950,
+body.theme-dark .bg-indigo-950\/60,
+body.theme-dark .bg-indigo-950\/40 {
+  background-color: #261B33 !important;
+  border-color: #5B21B6 !important;
+}
+
+/* Dark Mode Form Controls */
+body.theme-dark input,
+body.theme-dark textarea,
+body.theme-dark select {
+  background-color: #1E1D1B !important;
+  color: #F5F2EB !important;
+  border: 1px solid #3E3B36 !important;
+  border-radius: 8px !important;
+}
+
+body.theme-dark input::placeholder,
+body.theme-dark textarea::placeholder {
+  color: #8E8880 !important;
+}
+
+body.theme-dark input:focus,
+body.theme-dark textarea:focus,
+body.theme-dark select:focus {
+  border-color: #FB923C !important;
+  outline: 2px solid #7C2D12 !important;
+  outline-offset: 1px !important;
+}
+
+/* Dark Mode Tables & Footer */
+body.theme-dark table {
+  background-color: #1E1D1B !important;
+  border-color: #383531 !important;
+}
+
+body.theme-dark thead {
+  background-color: #272522 !important;
+  border-color: #383531 !important;
+  color: #C5BFB5 !important;
+}
+
+body.theme-dark tr:hover {
+  background-color: #262421 !important;
+}
+
+body.theme-dark footer {
+  background-color: #181715 !important;
+  border-color: #383531 !important;
+  color: #8E8880 !important;
+}
+
+body.theme-dark ::-webkit-scrollbar-thumb {
+  background: #3E3B36;
+  border-radius: 4px;
+}
+
+body.theme-dark ::-webkit-scrollbar-thumb:hover {
+  background: #4F4A44;
+}
+
+/* Quiet Scrollbar Base */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* =============================================================
+   INTERACTION STATES & ACCESSIBILITY POLISH (BATCH 3)
+   ============================================================= */
+
+/* Universal Focus-Visible Rings */
+:focus-visible {
+  outline: 2px solid #C2410C !important;
+  outline-offset: 2px !important;
+}
+
+body.theme-dark :focus-visible {
+  outline: 2px solid #FB923C !important;
+  outline-offset: 2px !important;
+}
+
+/* Universal Disabled States */
+button:disabled,
+input:disabled,
+select:disabled,
+textarea:disabled,
+[aria-disabled="true"] {
+  opacity: 0.55 !important;
+  cursor: not-allowed !important;
+  pointer-events: none !important;
+  filter: grayscale(0.2) !important;
+}
+
+/* Subtle Tactile Active Feedback */
+button:active:not(:disabled),
+a:active,
+[role="button"]:active {
+  transform: scale(0.985);
+}
+
+/* Smooth Focus Transitions */
+button,
+input,
+select,
+textarea,
+a {
+  transition: border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease, transform 0.1s ease;
+}

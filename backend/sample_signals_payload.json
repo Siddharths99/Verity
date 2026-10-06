@@ -1,0 +1,8 @@
+{
+  "caller_identity_anomaly": 45.0,
+  "audio_synthetic_score": 75.0,
+  "semantic_urgency_score": 80.0,
+  "url_threat_score": 0.0,
+  "requests_otp_or_credentials": true,
+  "claims_bank_or_authority": true
+}

@@ -1,0 +1,8 @@
+{
+  "name": "Remix VERITY — Multimodal AI Impersonation \u0026 Fraud Prevention",
+  "description": "Enterprise-grade multimodal defense system that evaluates caller identity, media authenticity, communication patterns, and requested actions to prevent AI impersonation and financial fraud.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

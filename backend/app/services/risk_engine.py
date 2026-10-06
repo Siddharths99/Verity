@@ -30,7 +30,8 @@ class RiskEngine:
         flags: List[str],
         evidence: List[str],
         evaluation_data: Dict[str, Any],
-        recommended_actions: Optional[List[str]] = None
+        recommended_actions: Optional[List[str]] = None,
+        raw_telemetry: Optional[Dict[str, Any]] = None
     ) -> VerityResult:
         # 1. Base Weighted Score Calculation
         weighted_score = (
@@ -86,6 +87,22 @@ class RiskEngine:
             if weighted_score < 80.0:
                 weighted_score = 85.0
             escalation_reasons.append("High risk override: Request to install remote desktop control tool.")
+
+        # Rule G: Media Synthetic / Deepfake Artifacts or Forged Document Override
+        is_synthetic_media = (
+            "SYNTHETIC_DEEPFAKE_ARTIFACTS" in flags_set
+            or "FORGED_DOCUMENT" in flags_set
+            or "COUNTERFEIT_SEAL" in flags_set
+            or "AI_GENERATED_IMAGE" in flags_set
+            or media_score >= 65.0
+        )
+        if is_synthetic_media:
+            if weighted_score < 80.0:
+                weighted_score = max(86.0, media_score * 0.95)
+            escalation_reasons.append("High risk override: Synthetic media / deepfake artifacts or forged document detected.")
+        elif media_score <= 15.0 and not flags_set and identity_score <= 15.0 and intent_score <= 15.0:
+            # Genuine, authentic content with no deception flags
+            weighted_score = min(weighted_score, 12.0)
 
         # Normalize score
         final_score = round(max(0.0, min(100.0, weighted_score)), 1)
@@ -161,7 +178,8 @@ class RiskEngine:
             signal_breakdown=signal_breakdown,
             flags=list(flags_set),
             evidence=unique_evidence,
-            recommended_actions=actions
+            recommended_actions=actions,
+            raw_telemetry=raw_telemetry
         )
 
 

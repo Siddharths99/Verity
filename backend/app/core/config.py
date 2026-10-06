@@ -7,14 +7,14 @@ class Settings(BaseSettings):
     PROJECT_NAME: str = "VERITY - Multimodal AI Impersonation & Fraud Prevention"
     VERSION: str = "1.0.0"
     API_V1_STR: str = "/api/v1"
-    DEBUG: bool = False
+    DEBUG: bool = False  # NEVER set to True in production
 
     # Database
     DATABASE_URL: str = "sqlite+aiosqlite:///./verity.db"
 
     # AI / LLM Configuration (Loaded securely from .env)
     GEMINI_API_KEY: str = ""
-    GEMINI_MODEL: str = "gemini-3.5-flash-lite"
+    GEMINI_MODEL: str = "gemini-3.5-flash"
 
     # External APIs (Optional)
     GOOGLE_SAFE_BROWSING_KEY: str = ""

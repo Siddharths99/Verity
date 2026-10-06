@@ -65,6 +65,13 @@ class RulesEngine:
             identity_score += 45.0
             intent_score += 30.0
 
+            # Emit specific "digital arrest" flag when explicit digital-arrest keywords detected
+            digital_arrest_terms = ["digital arrest", "police order", "cbi", "cybercrime", "customs", "narcotics"]
+            if any(term in text_lower for term in digital_arrest_terms):
+                flags.append("LAW_ENFORCEMENT_DIGITAL_ARREST_PRETEXT")
+                evidence.append("Message explicitly invokes digital arrest, police order, or law enforcement coercion.")
+                intent_score = min(100.0, intent_score + 20.0)
+
         if has_utility_mention and ("disconnected" in text_lower or "disconnection" in text_lower or "pay" in text_lower):
             flags.append("UTILITY_DISCONNECTION_SCAM_PATTERN")
             evidence.append("Classic utility disconnection scam pattern threatening immediate power/service cut off.")

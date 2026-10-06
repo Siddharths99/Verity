@@ -1,13 +1,19 @@
 # Environments & Dependencies
 venv/
+.venv/
 env/
 ENV/
+node_modules/
+dist/
+build/
 __pycache__/
 *.py[cod]
 *$py.class
 
 # Secrets & Local Config
 .env
+.env*
+!.env.example
 .env.local
 .env.*.local
 

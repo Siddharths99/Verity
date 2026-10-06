@@ -12,3 +12,9 @@ api_router.include_router(url.router, prefix="/analyze", tags=["URL & Phishing C
 
 # Incident & Storage Routes
 api_router.include_router(incidents.router, prefix="/incidents", tags=["Incidents & History"])
+
+
+@api_router.get("/healthz", tags=["Health"])
+async def api_healthz():
+    return {"status": "healthy"}
+

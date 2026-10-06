@@ -9,6 +9,9 @@ from app.schemas.incident import IncidentSummary, IncidentDetail, FeedbackReques
 
 router = APIRouter()
 
+# Maximum scan_id length to guard against injection via path params
+_SCAN_ID_MAX_LEN = 64
+
 
 @router.get("", response_model=List[IncidentSummary], summary="List scan and incident history")
 async def list_incidents(
@@ -33,10 +36,14 @@ async def list_incidents(
 
 @router.get("/stats", response_model=DashboardStats, summary="Dashboard metrics and incident statistics")
 async def get_dashboard_stats(db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(ScanRecord))
-    all_records = result.scalars().all()
+    """
+    Uses SQL aggregation queries instead of loading all records into memory
+    to avoid memory exhaustion as scan history grows.
+    """
+    # Total count via SQL COUNT — O(1) memory
+    total_result = await db.execute(select(func.count()).select_from(ScanRecord))
+    total = total_result.scalar() or 0
 
-    total = len(all_records)
     if total == 0:
         return DashboardStats(
             total_scans=0,
@@ -49,23 +56,42 @@ async def get_dashboard_stats(db: AsyncSession = Depends(get_db)):
             scans_by_modality={}
         )
 
-    critical_count = sum(1 for r in all_records if r.risk_level == "CRITICAL")
-    high_count = sum(1 for r in all_records if r.risk_level == "HIGH")
-    medium_count = sum(1 for r in all_records if r.risk_level == "MEDIUM")
-    low_count = sum(1 for r in all_records if r.risk_level == "LOW")
-    avg_score = round(sum(r.risk_score for r in all_records) / total, 1)
+    # Per-tier counts using SQL conditional aggregation
+    counts_result = await db.execute(
+        select(
+            func.count().filter(ScanRecord.risk_level == "CRITICAL").label("critical"),
+            func.count().filter(ScanRecord.risk_level == "HIGH").label("high"),
+            func.count().filter(ScanRecord.risk_level == "MEDIUM").label("medium"),
+            func.count().filter(ScanRecord.risk_level == "LOW").label("low"),
+            func.avg(ScanRecord.risk_score).label("avg_score"),
+        )
+    )
+    row = counts_result.one()
+    critical_count = row.critical or 0
+    high_count = row.high or 0
+    medium_count = row.medium or 0
+    low_count = row.low or 0
+    avg_score = round(float(row.avg_score or 0.0), 1)
 
+    # Modality breakdown — SQL GROUP BY
+    modality_result = await db.execute(
+        select(ScanRecord.modality, func.count().label("cnt"))
+        .group_by(ScanRecord.modality)
+    )
+    scans_by_modality: Dict[str, int] = {r.modality: r.cnt for r in modality_result}
+
+    # Flag frequency — still requires fetching flags column, but limited to recent 500 records
+    flags_result = await db.execute(
+        select(ScanRecord.flags)
+        .order_by(desc(ScanRecord.created_at))
+        .limit(500)
+    )
     top_flags: Dict[str, int] = {}
-    for r in all_records:
-        if r.flags and isinstance(r.flags, list):
-            for flag in r.flags:
+    for (flags_val,) in flags_result:
+        if flags_val and isinstance(flags_val, list):
+            for flag in flags_val:
                 top_flags[flag] = top_flags.get(flag, 0) + 1
-
     sorted_flags = dict(sorted(top_flags.items(), key=lambda item: item[1], reverse=True)[:8])
-
-    scans_by_modality: Dict[str, int] = {}
-    for r in all_records:
-        scans_by_modality[r.modality] = scans_by_modality.get(r.modality, 0) + 1
 
     return DashboardStats(
         total_scans=total,
@@ -84,6 +110,10 @@ async def get_incident(
     scan_id: str,
     db: AsyncSession = Depends(get_db)
 ):
+    # Validate scan_id to prevent unexpected injection via path parameter
+    if not scan_id or len(scan_id) > _SCAN_ID_MAX_LEN:
+        raise HTTPException(status_code=400, detail="Invalid scan ID.")
+
     query = select(ScanRecord).where(ScanRecord.id == scan_id)
     result = await db.execute(query)
     record = result.scalar_one_or_none()
@@ -100,6 +130,9 @@ async def submit_feedback(
     feedback_data: FeedbackRequest,
     db: AsyncSession = Depends(get_db)
 ):
+    if not scan_id or len(scan_id) > _SCAN_ID_MAX_LEN:
+        raise HTTPException(status_code=400, detail="Invalid scan ID.")
+
     query = select(ScanRecord).where(ScanRecord.id == scan_id)
     result = await db.execute(query)
     record = result.scalar_one_or_none()

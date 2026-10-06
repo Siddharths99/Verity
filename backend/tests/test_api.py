@@ -138,3 +138,26 @@ def test_incidents_listing_and_stats(client):
         "notes": "Verified fraudulent sender number"
     })
     assert feedback_resp.status_code == 200
+
+
+def test_signal_scoring_endpoint(client):
+    payload = {
+        "caller_identity_anomaly": 45.0,
+        "audio_synthetic_score": 75.0,
+        "semantic_urgency_score": 80.0,
+        "url_threat_score": 0.0,
+        "requests_otp_or_credentials": True,
+        "claims_bank_or_authority": True
+    }
+    response = client.post("/api/v1/analyze/signals", json=payload)
+    assert response.status_code == 200
+    data = response.json()
+    assert "scan_id" in data
+    assert data["risk_level"] in ("HIGH", "CRITICAL")
+    assert data["risk_score"] >= 85.0
+    assert "OTP_CREDENTIAL_SOLICITATION" in data["flags"]
+    assert "BANK_IMPERSONATION_RISK" in data["flags"]
+    assert "SYNTHETIC_VOICE_ARTIFACTS" in data["flags"]
+    assert data["signal_breakdown"]["media_synthetic_score"] == 75.0
+    assert data["signal_breakdown"]["intent_pressure_score"] == 80.0
+

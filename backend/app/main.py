@@ -1,5 +1,5 @@
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
@@ -26,17 +26,34 @@ app = FastAPI(
         "4. CAN THE INTERACTION BE TRUSTED?\n\n"
         "Combines rule-based indicators, link heuristics, speech-to-text, Gemini AI reasoning, and weighted risk scoring."
     ),
-    lifespan=lifespan
+    lifespan=lifespan,
+    # Disable interactive API docs in production to reduce attack surface
+    docs_url="/docs" if settings.DEBUG else None,
+    redoc_url="/redoc" if settings.DEBUG else None,
+    openapi_url="/openapi.json" if settings.DEBUG else None,
 )
 
-# CORS configuration for future React frontend
+# CORS configuration
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "OPTIONS"],  # Explicit allowlist — no wildcard
+    allow_headers=["Content-Type", "Authorization", "Accept", "X-Request-ID"],
 )
+
+
+# Security headers middleware — applied to every response
+@app.middleware("http")
+async def add_security_headers(request: Request, call_next) -> Response:
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Cache-Control"] = "no-store"
+    return response
+
 
 # Mount API v1 router
 app.include_router(api_router, prefix=settings.API_V1_STR)
@@ -48,7 +65,6 @@ async def root():
         "project": settings.PROJECT_NAME,
         "version": settings.VERSION,
         "status": "online",
-        "docs_url": "/docs",
         "api_v1": settings.API_V1_STR
     }
 
