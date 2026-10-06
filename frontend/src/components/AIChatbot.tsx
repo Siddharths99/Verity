@@ -199,29 +199,22 @@ export const AIChatbot: React.FC<AIChatbotProps> = ({ onOpenQuickAnalysis, isMob
                 setIsOpen(true);
                 setUnreadCount(0);
               }}
-              title="Chat with VERITY AI Security Copilot"
-              className={`pointer-events-auto group relative flex items-center justify-center rounded-full bg-cyan-400 hover:bg-cyan-300 text-slate-950 font-bold shadow-lg hover:shadow-xl active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:ring-offset-2 transition-all duration-200 cursor-pointer ${
-                isMobile
-                  ? 'w-11 h-11 p-0'
-                  : 'gap-2.5 px-3.5 py-2.5 sm:px-4 sm:py-2.5 text-xs sm:text-sm'
-              }`}
+              title="VERITY AI Security Copilot"
+              aria-label="Open VERITY Copilot"
+              className="pointer-events-auto group relative flex items-center justify-center w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-gradient-to-tr from-cyan-500 via-cyan-400 to-sky-300 text-slate-950 shadow-[0_0_25px_rgba(6,182,212,0.65)] hover:shadow-[0_0_35px_rgba(6,182,212,0.9)] border-2 border-cyan-200 hover:scale-110 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 transition-all duration-200 cursor-pointer"
             >
-              {/* Logo Icon */}
-              <div className="relative flex items-center justify-center w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-slate-950 text-cyan-400 shrink-0">
-                <Bot className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-400 border border-slate-950" />
-              </div>
+              {/* Outer pulsing ring for high visibility */}
+              <span className="absolute inset-0 rounded-full bg-cyan-400/30 animate-ping pointer-events-none -z-10" />
 
-              {/* Desktop Label */}
-              {!isMobile && (
-                <span className="text-slate-950 tracking-wide font-bold text-xs sm:text-sm hidden sm:inline whitespace-nowrap">
-                  Ask VERITY Copilot
-                </span>
-              )}
+              {/* High-visibility Copilot Logo */}
+              <div className="relative flex items-center justify-center w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-slate-950 text-cyan-400 shadow-inner group-hover:scale-105 transition-transform shrink-0">
+                <Bot className="w-6 h-6 sm:w-7 sm:h-7 text-cyan-400" />
+                <span className="absolute -top-0.5 -right-0.5 w-3 h-3 rounded-full bg-emerald-400 border-2 border-slate-950 animate-pulse" />
+              </div>
 
               {/* Unread badge */}
               {unreadCount > 0 && (
-                <span className="absolute -top-1 -left-1 px-1.5 py-0.2 rounded-full text-[9px] font-bold bg-red-500 text-white shadow-md">
+                <span className="absolute -top-1 -right-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold font-mono bg-red-500 text-white shadow-lg border border-slate-950">
                   {unreadCount}
                 </span>
               )}

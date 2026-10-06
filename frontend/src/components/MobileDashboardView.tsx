@@ -39,6 +39,7 @@ interface MobileDashboardViewProps {
   onSelectRecord: (record: AnalysisRecord) => void;
   onNavigateTab: (tab: string) => void;
   onOpenProfile: () => void;
+  records?: AnalysisRecord[];
   activeMobileTab?: string;
   onMobileTabChange?: (tab: string) => void;
 }
@@ -51,6 +52,7 @@ export const MobileDashboardView: React.FC<MobileDashboardViewProps> = ({
   onSelectRecord,
   onNavigateTab,
   onOpenProfile,
+  records,
   activeMobileTab = 'home',
   onMobileTabChange = () => {}
 }) => {
@@ -351,59 +353,119 @@ export const MobileDashboardView: React.FC<MobileDashboardViewProps> = ({
         </div>
 
         <div className="space-y-1.5">
-          {recentItems.map((item) => {
-            const Icon = item.typeIcon;
-            return (
-              <div
-                key={item.id}
-                onClick={() => handleItemTap(item)}
-                className="p-3 rounded-lg bg-slate-900/80 border border-slate-800 hover:border-slate-700 active:bg-slate-800/80 transition-all flex items-center justify-between gap-2.5 shadow-sm cursor-pointer group"
-              >
-                <div className="flex items-center gap-2.5">
-                  <div className={`p-1.5 rounded-lg border ${
-                    item.risk === 'CRITICAL' ? 'bg-red-950/60 border-red-500/40 text-red-400' :
-                    item.risk === 'HIGH' ? 'bg-orange-950/60 border-orange-500/40 text-orange-400' :
-                    'bg-amber-950/60 border-amber-500/40 text-amber-300'
-                  }`}>
-                    <Icon className="w-3.5 h-3.5" />
-                  </div>
-
-                  <div className="space-y-0.5">
-                    <div className="flex items-center gap-1.5">
-                      <span className={`text-[9px] font-mono font-bold px-1 py-0.2 rounded border ${
-                        item.risk === 'CRITICAL' ? 'bg-red-950 text-red-400 border-red-800' :
-                        item.risk === 'HIGH' ? 'bg-orange-950 text-orange-400 border-orange-800' :
-                        'bg-amber-950 text-amber-300 border-amber-800'
-                      }`}>
-                        {item.risk}
-                      </span>
-                      <span className="text-[11px] font-bold text-slate-100 group-hover:text-cyan-300 transition-colors">
-                        {item.subject}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center gap-1.5 text-[9px] text-slate-400 font-mono">
-                      <span className="text-slate-500">{item.time}</span>
-                      <span>·</span>
-                      <span className="text-slate-400 truncate max-w-[130px]">{item.caller}</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-1.5">
-                  <div className="text-right font-mono">
-                    <span className={`text-[11px] font-bold ${
-                      item.score >= 80 ? 'text-red-400' : 'text-amber-400'
+          {records && records.length > 0 ? (
+            records.slice(0, 5).map((rec) => {
+              const Icon = rec.type === 'call' ? PhoneCall : rec.type === 'voice' ? Mic : rec.type === 'message' ? MessageSquareText : rec.type === 'media' ? Film : Link2;
+              return (
+                <div
+                  key={rec.id}
+                  onClick={() => onSelectRecord(rec)}
+                  className="p-3 rounded-lg bg-slate-900/80 border border-slate-800 hover:border-slate-700 active:bg-slate-800/80 transition-all flex items-center justify-between gap-2.5 shadow-sm cursor-pointer group"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <div className={`p-1.5 rounded-lg border ${
+                      rec.risk === 'CRITICAL' ? 'bg-red-950/60 border-red-500/40 text-red-400' :
+                      rec.risk === 'HIGH' ? 'bg-orange-950/60 border-orange-500/40 text-orange-400' :
+                      'bg-emerald-950/60 border-emerald-500/40 text-emerald-300'
                     }`}>
-                      {item.score}
-                    </span>
-                    <span className="text-[9px] text-slate-500">/100</span>
+                      <Icon className="w-3.5 h-3.5" />
+                    </div>
+
+                    <div className="space-y-0.5">
+                      <div className="flex items-center gap-1.5">
+                        <span className={`text-[9px] font-mono font-bold px-1 py-0.2 rounded border ${
+                          rec.risk === 'CRITICAL' ? 'bg-red-950 text-red-400 border-red-800' :
+                          rec.risk === 'HIGH' ? 'bg-orange-950 text-orange-400 border-orange-800' :
+                          'bg-emerald-950 text-emerald-300 border-emerald-800'
+                        }`}>
+                          {rec.risk}
+                        </span>
+                        <span className="text-[11px] font-bold text-slate-100 group-hover:text-cyan-300 transition-colors line-clamp-1">
+                          {rec.subject}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-1.5 text-[9px] text-slate-400 font-mono">
+                        <span className="text-slate-500">{rec.time}</span>
+                        <span>·</span>
+                        <span className="text-slate-400 truncate max-w-[130px]">{rec.identityDetails.callerOrSender}</span>
+                        <span>·</span>
+                        <span className={rec.action === 'Verified' ? 'text-emerald-400 font-semibold' : rec.action === 'Rejected' ? 'text-red-400 font-semibold' : 'text-slate-500'}>
+                          {rec.action}
+                        </span>
+                      </div>
+                    </div>
                   </div>
-                  <ChevronRight className="w-3.5 h-3.5 text-slate-600 group-hover:text-cyan-400 transition-all" />
+
+                  <div className="flex items-center gap-1.5">
+                    <div className="text-right font-mono">
+                      <span className={`text-[11px] font-bold ${
+                        rec.score >= 80 ? 'text-red-400' : rec.score >= 50 ? 'text-amber-400' : 'text-emerald-400'
+                      }`}>
+                        {rec.score}
+                      </span>
+                      <span className="text-[9px] text-slate-500">/100</span>
+                    </div>
+                    <ChevronRight className="w-3.5 h-3.5 text-slate-600 group-hover:text-cyan-400 transition-all" />
+                  </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })
+          ) : (
+            recentItems.map((item) => {
+              const Icon = item.typeIcon;
+              return (
+                <div
+                  key={item.id}
+                  onClick={() => handleItemTap(item)}
+                  className="p-3 rounded-lg bg-slate-900/80 border border-slate-800 hover:border-slate-700 active:bg-slate-800/80 transition-all flex items-center justify-between gap-2.5 shadow-sm cursor-pointer group"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <div className={`p-1.5 rounded-lg border ${
+                      item.risk === 'CRITICAL' ? 'bg-red-950/60 border-red-500/40 text-red-400' :
+                      item.risk === 'HIGH' ? 'bg-orange-950/60 border-orange-500/40 text-orange-400' :
+                      'bg-amber-950/60 border-amber-500/40 text-amber-300'
+                    }`}>
+                      <Icon className="w-3.5 h-3.5" />
+                    </div>
+
+                    <div className="space-y-0.5">
+                      <div className="flex items-center gap-1.5">
+                        <span className={`text-[9px] font-mono font-bold px-1 py-0.2 rounded border ${
+                          item.risk === 'CRITICAL' ? 'bg-red-950 text-red-400 border-red-800' :
+                          item.risk === 'HIGH' ? 'bg-orange-950 text-orange-400 border-orange-800' :
+                          'bg-amber-950 text-amber-300 border-amber-800'
+                        }`}>
+                          {item.risk}
+                        </span>
+                        <span className="text-[11px] font-bold text-slate-100 group-hover:text-cyan-300 transition-colors">
+                          {item.subject}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-1.5 text-[9px] text-slate-400 font-mono">
+                        <span className="text-slate-500">{item.time}</span>
+                        <span>·</span>
+                        <span className="text-slate-400 truncate max-w-[130px]">{item.caller}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-1.5">
+                    <div className="text-right font-mono">
+                      <span className={`text-[11px] font-bold ${
+                        item.score >= 80 ? 'text-red-400' : 'text-amber-400'
+                      }`}>
+                        {item.score}
+                      </span>
+                      <span className="text-[9px] text-slate-500">/100</span>
+                    </div>
+                    <ChevronRight className="w-3.5 h-3.5 text-slate-600 group-hover:text-cyan-400 transition-all" />
+                  </div>
+                </div>
+              );
+            })
+          )}
         </div>
       </div>
 

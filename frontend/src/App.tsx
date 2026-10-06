@@ -20,20 +20,65 @@ import { UserProfileDrawer } from './components/UserProfileDrawer';
 import { ChangePasswordModal } from './components/ChangePasswordModal';
 import { ChangeNumberModal } from './components/ChangeNumberModal';
 import { OtpVerificationModal } from './components/OtpVerificationModal';
+import { IndependentVerifyModal } from './components/IndependentVerifyModal';
+import { BlockSenderModal } from './components/BlockSenderModal';
+import { ReportFraudModal } from './components/ReportFraudModal';
 import { AIChatbot } from './components/AIChatbot';
 import { RECENT_ANALYSIS_RECORDS } from './data/mockData';
 import { AnalysisRecord, ModalityType } from './types';
 import { ThemeMode, UserProfile, INITIAL_USER_PROFILE } from './types/user';
 import { exportAuditLogToPdf } from './utils/pdfExport';
-import { apiService } from './utils/apiService';
+import { apiService, mapBackendIncidentToAnalysisRecord } from './utils/apiService';
 import { CheckCircle2, ShieldAlert, Info, Smartphone, Monitor, X } from 'lucide-react';
+
+const STORAGE_KEY = 'verity_analysis_records_v3';
+
+function isMockRecord(id?: string): boolean {
+  if (!id) return false;
+  return (
+    id.startsWith('an-00') ||
+    id.startsWith('mb-') ||
+    id === 'an-001' ||
+    id === 'an-002' ||
+    id === 'an-003' ||
+    id === 'an-004' ||
+    id === 'an-005'
+  );
+}
+
+function loadInitialRecords(): AnalysisRecord[] {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY) || localStorage.getItem('verity_analysis_records_v2');
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        const real = parsed.filter((r) => !isMockRecord(r.id));
+        if (real.length > 0) {
+          return real;
+        }
+      }
+    }
+  } catch (err) {
+    console.error('Failed to parse records from localStorage', err);
+  }
+  return [];
+}
+
+function saveRecordsToStorage(newRecords: AnalysisRecord[]) {
+  try {
+    const realOnly = newRecords.filter((r) => !isMockRecord(r.id));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(realOnly));
+  } catch (err) {
+    console.error('Failed to save records to localStorage', err);
+  }
+}
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<string>('dashboard');
   const [theme, setTheme] = useState<ThemeMode>('light');
   const [user, setUser] = useState<UserProfile>(INITIAL_USER_PROFILE);
   const [protectionActive, setProtectionActive] = useState<boolean>(true);
-  const [records, setRecords] = useState<AnalysisRecord[]>(RECENT_ANALYSIS_RECORDS);
+  const [records, setRecords] = useState<AnalysisRecord[]>(loadInitialRecords);
   const [isMobileMode, setIsMobileMode] = useState<boolean>(() => {
     if (typeof window !== 'undefined') {
       return window.innerWidth < 768;
@@ -41,6 +86,8 @@ export default function App() {
     return false;
   });
   const [mobileSubView, setMobileSubView] = useState<'dashboard' | 'new-analysis' | 'history' | 'result' | 'call-protection' | 'settings'>('dashboard');
+  const [activeCallNumber, setActiveCallNumber] = useState<string>('+91 98401 24590');
+  const [activeCallClaimed, setActiveCallClaimed] = useState<string>('Bank Representative');
 
   // Modals state
   const [selectedRecord, setSelectedRecord] = useState<AnalysisRecord | null>(null);
@@ -52,6 +99,30 @@ export default function App() {
   const [isOtpModalOpen, setIsOtpModalOpen] = useState<boolean>(false);
   const [otpModalType, setOtpModalType] = useState<'phone' | 'email'>('phone');
   const [toastMessage, setToastMessage] = useState<{ text: string; type: 'success' | 'alert' | 'info' } | null>(null);
+
+  // Dedicated Action Modals State (Verify Independently, Block Sender, Report Fraud 1930)
+  const [isVerifyModalOpen, setIsVerifyModalOpen] = useState<boolean>(false);
+  const [isBlockModalOpen, setIsBlockModalOpen] = useState<boolean>(false);
+  const [isReportModalOpen, setIsReportModalOpen] = useState<boolean>(false);
+  const [modalTargetRecord, setModalTargetRecord] = useState<AnalysisRecord | null>(null);
+
+  const handleOpenVerify = (record?: AnalysisRecord) => {
+    const rec = record || selectedRecord || (records.length > 0 ? records[0] : null);
+    setModalTargetRecord(rec);
+    setIsVerifyModalOpen(true);
+  };
+
+  const handleOpenBlock = (record?: AnalysisRecord) => {
+    const rec = record || selectedRecord || (records.length > 0 ? records[0] : null);
+    setModalTargetRecord(rec);
+    setIsBlockModalOpen(true);
+  };
+
+  const handleOpenReport = (record?: AnalysisRecord) => {
+    const rec = record || selectedRecord || (records.length > 0 ? records[0] : null);
+    setModalTargetRecord(rec);
+    setIsReportModalOpen(true);
+  };
 
   const handleVerifyOtpSuccess = (type: 'phone' | 'email') => {
     setUser((prev) => {
@@ -92,12 +163,37 @@ export default function App() {
     document.body.className = `theme-${theme} antialiased selection:bg-[#FCE7DB] selection:text-[#9A3412] min-h-screen font-sans`;
   }, [theme]);
 
-  // Check live FastAPI backend connection on mount
+  // Check live FastAPI backend connection on mount & synchronize scan records
   useEffect(() => {
     let mounted = true;
     apiService.checkHealth().then((isHealthy) => {
       if (mounted && isHealthy) {
         showToast('⚡ Live FastAPI Backend Connected (http://localhost:8000)', 'success');
+        
+        // Fetch and merge scan history from backend SQLite database
+        apiService.fetchIncidents(100, 0).then((incidents) => {
+          if (!mounted || !incidents || incidents.length === 0) return;
+          const backendRecords = incidents.map(mapBackendIncidentToAnalysisRecord);
+          setRecords((current) => {
+            const realCurrent = current.filter((r) => !isMockRecord(r.id));
+            const currentMap = new Map(realCurrent.map((r) => [r.id, r]));
+            for (const bRecord of backendRecords) {
+              if (!currentMap.has(bRecord.id)) {
+                currentMap.set(bRecord.id, bRecord);
+              } else {
+                const existing = currentMap.get(bRecord.id)!;
+                if (bRecord.action === 'Verified' || bRecord.action === 'Rejected' || bRecord.action === 'Blocked' || bRecord.action === 'Quarantined') {
+                  existing.action = bRecord.action;
+                  existing.risk = bRecord.risk;
+                }
+              }
+            }
+            const merged = Array.from(currentMap.values());
+            merged.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+            saveRecordsToStorage(merged);
+            return merged;
+          });
+        }).catch(() => {});
       }
     });
     return () => {
@@ -138,7 +234,12 @@ export default function App() {
   };
 
   const handleAnalysisComplete = (newRecord: AnalysisRecord) => {
-    setRecords((prev) => [newRecord, ...prev]);
+    setRecords((prev) => {
+      const real = prev.filter((r) => !isMockRecord(r.id) && r.id !== newRecord.id);
+      const updated = [newRecord, ...real];
+      saveRecordsToStorage(updated);
+      return updated;
+    });
     setIsQuickAnalysisOpen(false);
     setSelectedRecord(newRecord);
     setUser((prev) => ({
@@ -153,22 +254,49 @@ export default function App() {
   };
 
   const handleTakeAction = (recordId: string, actionType: string) => {
-    setRecords((prev) =>
-      prev.map((r) =>
+    const normalizedAction = actionType as any;
+    let newRisk: any;
+    if (actionType === 'Blocked' || actionType === 'Rejected' || actionType === 'Quarantined') {
+      newRisk = 'CRITICAL';
+    } else if (actionType === 'Verified' || actionType === 'Safe' || actionType === 'Approved') {
+      newRisk = 'LOW';
+    }
+
+    setRecords((prev) => {
+      const updated = prev.map((r) =>
         r.id === recordId
           ? {
               ...r,
-              action: actionType as any,
-              risk: actionType === 'Blocked' || actionType === 'Quarantined' ? 'CRITICAL' : r.risk
+              action: normalizedAction,
+              risk: newRisk || r.risk
             }
           : r
-      )
+      );
+      saveRecordsToStorage(updated);
+      return updated;
+    });
+
+    setSelectedRecord((prev) =>
+      prev && prev.id === recordId
+        ? {
+            ...prev,
+            action: normalizedAction,
+            risk: newRisk || prev.risk
+          }
+        : prev
     );
+
     showToast(`Action applied: ${actionType} on record #${recordId}`, 'success');
 
     // Sync feedback with backend SQLite database if scan ID was generated by backend
     if (recordId.startsWith('vrt_')) {
-      apiService.submitFeedback(recordId, actionType === 'Blocked' ? 'CONFIRMED_SCAM' : 'USER_ACTION', `User executed action: ${actionType}`).catch(() => {});
+      const feedbackType =
+        actionType === 'Blocked' || actionType === 'Rejected'
+          ? 'CONFIRMED_SCAM'
+          : actionType === 'Verified' || actionType === 'Safe' || actionType === 'Approved'
+          ? 'CONFIRMED_SAFE'
+          : 'USER_ACTION';
+      apiService.submitFeedback(recordId, feedbackType, `User executed action: ${actionType}`).catch(() => {});
     }
   };
 
@@ -284,17 +412,9 @@ export default function App() {
             <MobileAnalysisResultView
               record={selectedRecord || (records.length > 0 ? records[0] : undefined)}
               onBack={() => setMobileSubView('dashboard')}
-              onBlockCaller={() => {
-                const recId = selectedRecord?.id || records[0]?.id;
-                if (recId) handleTakeAction(recId, 'Blocked');
-                showToast('Caller blocked across carrier gateways', 'success');
-              }}
-              onReportFraud={() => {
-                const recId = selectedRecord?.id || records[0]?.id;
-                if (recId) handleTakeAction(recId, 'Flagged');
-                showToast('Scam evidence dispatched to National Cybercrime Helpline (1930)', 'success');
-              }}
-              onVerifyIndependently={() => showToast('Safe Directory & 1930 Helpline initiated', 'info')}
+              onBlockCaller={() => handleOpenBlock(selectedRecord || records[0])}
+              onReportFraud={() => handleOpenReport(selectedRecord || records[0])}
+              onVerifyIndependently={() => handleOpenVerify(selectedRecord || records[0])}
               onQuarantine={() => {
                 const recId = selectedRecord?.id || records[0]?.id;
                 if (recId) handleTakeAction(recId, 'Quarantined');
@@ -318,13 +438,16 @@ export default function App() {
           ) : mobileSubView === 'call-protection' ? (
             <CallProtectionView
               isMobile={true}
+              initialPhoneNumber={activeCallNumber}
+              initialClaimedIdentity={activeCallClaimed}
+              isDemoMode={true}
               onEndCall={() => {
                 showToast('Inbound call terminated immediately by user', 'alert');
                 setMobileSubView('dashboard');
               }}
-              onBlockCaller={() => showToast('Caller added to carrier blacklist', 'success')}
-              onReportFraud={() => showToast('Fraud report logged', 'success')}
-              onVerifyIndependently={() => showToast('Safe Directory & 1930 Helpline initiated', 'info')}
+              onBlockCaller={() => handleOpenBlock(selectedRecord || records[0])}
+              onReportFraud={() => handleOpenReport(selectedRecord || records[0])}
+              onVerifyIndependently={() => handleOpenVerify(selectedRecord || records[0])}
               onBackToDashboard={() => setMobileSubView('dashboard')}
               onNavigateTab={(tab) => {
                 if (tab === 'home' || tab === 'dashboard') setMobileSubView('dashboard');
@@ -385,6 +508,7 @@ export default function App() {
                 else setMobileSubView('dashboard');
               }}
               onOpenProfile={() => setIsProfileOpen(true)}
+              records={records}
               activeMobileTab="home"
             />
           )
@@ -419,12 +543,10 @@ export default function App() {
                 <RecentAnalysisTable
                   records={records}
                   onSelectRecord={(record) => {
-                    if (record.score >= 80) {
-                      setActiveTab('incidents');
-                    } else {
-                      setSelectedRecord(record);
-                    }
+                    setSelectedRecord(record);
                   }}
+                  onTakeAction={handleTakeAction}
+                  onNewAnalysis={() => setIsQuickAnalysisOpen(true)}
                 />
               </div>
             )}
@@ -433,13 +555,27 @@ export default function App() {
             {activeTab === 'analyze' && (
               <AnalyzeHubView
                 onRunAnalysis={(newRecord) => {
-                  setRecords((prev) => [newRecord, ...prev]);
+                  setRecords((prev) => {
+                    const real = prev.filter((r) => !isMockRecord(r.id) && r.id !== newRecord.id);
+                    const updated = [newRecord, ...real];
+                    saveRecordsToStorage(updated);
+                    return updated;
+                  });
+                  setSelectedRecord(newRecord);
                   setUser((prev) => ({
                     ...prev,
-                    threatsBlockedCount: prev.threatsBlockedCount + 1
+                    threatsBlockedCount: newRecord.risk === 'CRITICAL' || newRecord.risk === 'HIGH' ? prev.threatsBlockedCount + 1 : prev.threatsBlockedCount
                   }));
                 }}
-                onViewResultScreen={() => setActiveTab('incidents')}
+                onViewResultScreen={() => {
+                  setActiveTab('dashboard');
+                }}
+                onLaunchCallProtection={(phone, claimed) => {
+                  setActiveCallNumber(phone);
+                  setActiveCallClaimed(claimed);
+                  setActiveTab('call-protection');
+                  showToast('Initiating Live Call Protection Session...', 'info');
+                }}
               />
             )}
 
@@ -448,10 +584,9 @@ export default function App() {
               <HistoryView
                 records={records}
                 onSelectRecord={(record) => {
+                  setSelectedRecord(record);
                   if (record.score >= 80) {
                     setActiveTab('incidents');
-                  } else {
-                    setSelectedRecord(record);
                   }
                 }}
                 onExportAuditLog={handleExportAuditLog}
@@ -462,28 +597,36 @@ export default function App() {
             {activeTab === 'incidents' && (
               <AnalysisResultView
                 record={selectedRecord || (records.length > 0 ? records[0] : undefined)}
-                onBackToDashboard={() => setActiveTab('history')}
-                onBlockCaller={() => {
+                onBackToDashboard={() => setActiveTab('dashboard')}
+                onBlockCaller={() => handleOpenBlock(selectedRecord || records[0])}
+                onReportFraud={() => handleOpenReport(selectedRecord || records[0])}
+                onVerifyIndependently={() => handleOpenVerify(selectedRecord || records[0])}
+                onVerifySafe={() => {
                   const recId = selectedRecord?.id || records[0]?.id;
-                  if (recId) handleTakeAction(recId, 'Blocked');
-                  showToast('Inbound caller blocked across carrier gateways', 'success');
+                  if (recId) handleTakeAction(recId, 'Verified');
+                  showToast('Record verified and marked Safe', 'success');
                 }}
-                onReportFraud={() => {
+                onRejectThreat={() => {
                   const recId = selectedRecord?.id || records[0]?.id;
-                  if (recId) handleTakeAction(recId, 'Flagged');
-                  showToast('Incident telemetry dispatched to National Cybercrime Helpline (1930)', 'success');
+                  if (recId) handleTakeAction(recId, 'Rejected');
+                  showToast('Record confirmed as fraudulent and Rejected', 'alert');
                 }}
-                onVerifyIndependently={() => showToast('Independent verification protocol initiated: Initiating secondary out-of-band contact', 'info')}
               />
             )}
 
             {/* TAB 5: CALL PROTECTION VIEW */}
             {activeTab === 'call-protection' && (
               <CallProtectionView
-                onEndCall={() => showToast('Inbound call terminated immediately by user', 'alert')}
-                onBlockCaller={() => showToast('Caller +91 XXXXX XXXXX added to carrier blacklist', 'success')}
-                onReportFraud={() => showToast('Fraud report logged to carrier registry and safety cell', 'success')}
-                onVerifyIndependently={() => showToast('Independent verification protocol active — Official directory dialed', 'info')}
+                initialPhoneNumber={activeCallNumber}
+                initialClaimedIdentity={activeCallClaimed}
+                isDemoMode={true}
+                onEndCall={() => {
+                  showToast('Inbound call terminated immediately by user', 'alert');
+                  setActiveTab('dashboard');
+                }}
+                onBlockCaller={() => handleOpenBlock(selectedRecord || records[0])}
+                onReportFraud={() => handleOpenReport(selectedRecord || records[0])}
+                onVerifyIndependently={() => handleOpenVerify(selectedRecord || records[0])}
                 onBackToDashboard={() => setActiveTab('dashboard')}
               />
             )}
@@ -598,11 +741,55 @@ export default function App() {
       )}
 
       {/* Detail Inspection Modal */}
-      {selectedRecord && !isMobileMode && (
+      {selectedRecord && !isMobileMode && activeTab !== 'incidents' && (
         <AnalysisDetailModal
           record={selectedRecord}
           onClose={() => setSelectedRecord(null)}
           onTakeAction={handleTakeAction}
+          onViewIncidentDossier={() => setActiveTab('incidents')}
+          onVerifyIndependently={(rec) => handleOpenVerify(rec)}
+          onBlockCaller={(rec) => handleOpenBlock(rec)}
+          onReportFraud={(rec) => handleOpenReport(rec)}
+        />
+      )}
+
+      {/* Dedicated Interactive Protection Action Modals */}
+      {isVerifyModalOpen && (
+        <IndependentVerifyModal
+          callerNumber={modalTargetRecord?.identityDetails?.callerOrSender || '+1 (555) 932-8411'}
+          onClose={() => setIsVerifyModalOpen(false)}
+          onConfirmVerified={() => {
+            if (modalTargetRecord) {
+              handleTakeAction(modalTargetRecord.id, 'Verified');
+            }
+            showToast('Marked as Verified via official directory contact', 'success');
+          }}
+        />
+      )}
+
+      {isBlockModalOpen && (
+        <BlockSenderModal
+          senderIdentifier={modalTargetRecord?.identityDetails?.callerOrSender || '+1 (555) 932-8411'}
+          onClose={() => setIsBlockModalOpen(false)}
+          onConfirmBlock={(sender, reason) => {
+            if (modalTargetRecord) {
+              handleTakeAction(modalTargetRecord.id, 'Blocked');
+            }
+            showToast(`Permanently blocked ${sender} across carrier gateways (${reason})`, 'success');
+          }}
+        />
+      )}
+
+      {isReportModalOpen && (
+        <ReportFraudModal
+          record={modalTargetRecord || undefined}
+          onClose={() => setIsReportModalOpen(false)}
+          onConfirmReport={(complaintRef) => {
+            if (modalTargetRecord) {
+              handleTakeAction(modalTargetRecord.id, 'Flagged');
+            }
+            showToast(`Evidence packet logged to National Cyber Crime Helpline (Ref: ${complaintRef})`, 'success');
+          }}
         />
       )}
 

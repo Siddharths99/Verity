@@ -42,6 +42,8 @@ interface AnalysisResultViewProps {
   onBlockCaller: () => void;
   onReportFraud: () => void;
   onVerifyIndependently: () => void;
+  onVerifySafe?: () => void;
+  onRejectThreat?: () => void;
 }
 
 export const AnalysisResultView: React.FC<AnalysisResultViewProps> = ({
@@ -49,7 +51,9 @@ export const AnalysisResultView: React.FC<AnalysisResultViewProps> = ({
   onBackToDashboard,
   onBlockCaller,
   onReportFraud,
-  onVerifyIndependently
+  onVerifyIndependently,
+  onVerifySafe,
+  onRejectThreat
 }) => {
   const [isTakeActionMenuOpen, setIsTakeActionMenuOpen] = useState<boolean>(false);
 
@@ -91,6 +95,18 @@ export const AnalysisResultView: React.FC<AnalysisResultViewProps> = ({
   };
 
   // Dynamically compute topic-specific evidence and telemetry based on modality
+  const formatTimelineTime = (offsetSeconds: number): string => {
+    if (currentRecord.timestamp && !isNaN(Number(currentRecord.timestamp))) {
+      const d = new Date(Number(currentRecord.timestamp) + offsetSeconds * 1000);
+      return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+    }
+    if (currentRecord.time && currentRecord.time !== 'Just now' && currentRecord.time !== 'Yesterday') {
+      return currentRecord.time;
+    }
+    const d = new Date(Date.now() - (12 - offsetSeconds) * 1000);
+    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+  };
+
   const getModalityData = () => {
     switch (currentRecord.type) {
       case 'call':
@@ -140,11 +156,11 @@ export const AnalysisResultView: React.FC<AnalysisResultViewProps> = ({
             }
           ],
           timeline: [
-            { time: '10:42:01', label: 'Call handshake received', detail: 'Inbound SIP trunk handshake from carrier relay (+1 555 932-8411)', icon: Clock },
-            { time: '10:42:03', label: 'Telecom identity verified', detail: 'STIR/SHAKEN Level C untrusted gateway flag triggered', icon: PhoneOff },
-            { time: '10:42:05', label: 'Audio stream speech-to-text', detail: 'Real-time NLP flagged digital arrest & account seizure phrases', icon: MessageSquareWarning },
-            { time: '10:42:08', label: 'Requested action classified', detail: 'Financial transfer & OTP harvesting solicitation detected', icon: KeyRound },
-            { time: '10:42:10', label: 'Threat verdict generated', detail: 'Automated telecom block rule primed and 1930 report ready', icon: ShieldAlert }
+            { time: formatTimelineTime(1), label: 'Call handshake received', detail: `Inbound SIP trunk handshake from carrier relay (${currentRecord.identityDetails?.callerOrSender || '+1 555 932-8411'})`, icon: Clock },
+            { time: formatTimelineTime(3), label: 'Telecom identity verified', detail: 'STIR/SHAKEN Level C untrusted gateway flag triggered', icon: PhoneOff },
+            { time: formatTimelineTime(5), label: 'Audio stream speech-to-text', detail: 'Real-time NLP flagged digital arrest & account seizure phrases', icon: MessageSquareWarning },
+            { time: formatTimelineTime(8), label: 'Requested action classified', detail: 'Financial transfer & OTP harvesting solicitation detected', icon: KeyRound },
+            { time: formatTimelineTime(10), label: 'Threat verdict generated', detail: 'Automated telecom block rule primed and 1930 report ready', icon: ShieldAlert }
           ]
         };
 
@@ -204,11 +220,11 @@ export const AnalysisResultView: React.FC<AnalysisResultViewProps> = ({
             breakdown,
             evidence,
             timeline: [
-              { time: '10:42:01', label: 'Audio payload ingested', detail: `${currentRecord.identityDetails?.callerOrSender || 'Uploaded audio stream'} loaded into acoustic analyzer`, icon: Clock },
-              { time: '10:42:03', label: 'MIME & waveform ingestion', detail: `${currentRecord.communicationDetails?.medium || 'Audio payload'} parsed for frequency examination`, icon: Mic },
-              { time: '10:42:06', label: 'Multimodal AI acoustic analysis', detail: 'Evaluated for synthetic vocoder pitch jitter and acoustic reverberation', icon: Activity },
-              { time: '10:42:08', label: 'Acoustic markers aggregated', detail: `Verdict: ${fd.verdict} | Type: ${fd.manipulationType || 'Voice Analysis'}`, icon: ShieldAlert },
-              { time: '10:42:10', label: 'Threat verdict issued', detail: `Threat Level: ${fd.threatLevel} | Action: ${fd.recommendedAction || currentRecord.action}`, icon: CheckCircle2 }
+              { time: formatTimelineTime(1), label: 'Audio payload ingested', detail: `${currentRecord.identityDetails?.callerOrSender || 'Uploaded audio stream'} loaded into acoustic analyzer`, icon: Clock },
+              { time: formatTimelineTime(3), label: 'MIME & waveform ingestion', detail: `${currentRecord.communicationDetails?.medium || 'Audio payload'} parsed for frequency examination`, icon: Mic },
+              { time: formatTimelineTime(6), label: 'Multimodal AI acoustic analysis', detail: 'Evaluated for synthetic vocoder pitch jitter and acoustic reverberation', icon: Activity },
+              { time: formatTimelineTime(8), label: 'Acoustic markers aggregated', detail: `Verdict: ${fd.verdict} | Type: ${fd.manipulationType || 'Voice Analysis'}`, icon: ShieldAlert },
+              { time: formatTimelineTime(10), label: 'Threat verdict issued', detail: `Threat Level: ${fd.threatLevel} | Action: ${fd.recommendedAction || currentRecord.action}`, icon: CheckCircle2 }
             ]
           };
         }
@@ -259,11 +275,11 @@ export const AnalysisResultView: React.FC<AnalysisResultViewProps> = ({
             }
           ],
           timeline: [
-            { time: '10:42:01', label: 'Audio payload ingested', detail: 'Audio stream loaded from voice message buffer (.mp3 / .wav)', icon: Clock },
-            { time: '10:42:03', label: 'Mel-spectrogram transformed', detail: 'FFT spectrum analyzed for high-frequency synthetic cutoffs', icon: Mic },
-            { time: '10:42:06', label: 'Neural vocoder extracted', detail: 'Pitch jitter anomaly score exceeded 0.01% threshold', icon: Activity },
-            { time: '10:42:08', label: 'Emotional coercion flagged', detail: 'Distress bailout pretext matched emergency scam pattern', icon: MessageSquareWarning },
-            { time: '10:42:10', label: 'Voice clone verdict issued', detail: '94% synthetic speech clone alert dispatched', icon: ShieldAlert }
+            { time: formatTimelineTime(1), label: 'Audio payload ingested', detail: `${currentRecord.identityDetails?.callerOrSender || 'Audio stream'} loaded from voice message buffer (.mp3 / .wav)`, icon: Clock },
+            { time: formatTimelineTime(3), label: 'Mel-spectrogram transformed', detail: 'FFT spectrum analyzed for high-frequency synthetic cutoffs', icon: Mic },
+            { time: formatTimelineTime(6), label: 'Neural vocoder extracted', detail: 'Pitch jitter anomaly score exceeded 0.01% threshold', icon: Activity },
+            { time: formatTimelineTime(8), label: 'Emotional coercion flagged', detail: 'Distress bailout pretext matched emergency scam pattern', icon: MessageSquareWarning },
+            { time: formatTimelineTime(10), label: 'Voice clone verdict issued', detail: `${currentRecord.communicationDetails?.syntheticProbability || 94}% synthetic speech clone alert dispatched`, icon: ShieldAlert }
           ]
         };
       }
@@ -315,11 +331,11 @@ export const AnalysisResultView: React.FC<AnalysisResultViewProps> = ({
             }
           ],
           timeline: [
-            { time: '10:42:01', label: 'Message payload received', detail: 'SMS / WhatsApp text string parsed into NLP pipeline', icon: Clock },
-            { time: '10:42:03', label: 'Sender header verified', detail: 'Unregistered bulk gateway detected (No official DLT registration)', icon: UserX },
-            { time: '10:42:05', label: 'Shortlink expanded', detail: 'Redirect chain traced to newly registered phishing host', icon: Globe },
-            { time: '10:42:07', label: 'Panic triggers extracted', detail: 'Urgent 2-hour account lockout threat flagged', icon: MessageSquareWarning },
-            { time: '10:42:10', label: 'Smishing alert generated', detail: 'High-risk SMS phishing verdict issued with block recommendation', icon: ShieldAlert }
+            { time: formatTimelineTime(1), label: 'Message payload received', detail: 'SMS / WhatsApp text string parsed into NLP pipeline', icon: Clock },
+            { time: formatTimelineTime(3), label: 'Sender header verified', detail: `${currentRecord.identityDetails?.callerOrSender || 'Unregistered bulk gateway'} analyzed`, icon: UserX },
+            { time: formatTimelineTime(5), label: 'Shortlink expanded', detail: 'Redirect chain traced and verified against threat intelligence', icon: Globe },
+            { time: formatTimelineTime(7), label: 'Panic triggers extracted', detail: currentRecord.requestedActionDetails?.actionType || 'Urgent account lockout threat flagged', icon: MessageSquareWarning },
+            { time: formatTimelineTime(10), label: 'Message assessment generated', detail: `${currentRecord.risk} risk verdict issued with recommendation`, icon: ShieldAlert }
           ]
         };
 
@@ -379,11 +395,11 @@ export const AnalysisResultView: React.FC<AnalysisResultViewProps> = ({
             breakdown,
             evidence,
             timeline: [
-              { time: '10:42:01', label: 'Media container decoded', detail: `${currentRecord.identityDetails?.callerOrSender || 'Uploaded file'} loaded into multimodal analyzer`, icon: Clock },
-              { time: '10:42:03', label: 'MIME & frame extraction', detail: 'Actual file payload / representative frames processed', icon: FileImage },
-              { time: '10:42:06', label: 'Multimodal AI vision model scan', detail: 'Evaluated for synthetic synthesis, GAN seams, and diffusion artifacts', icon: Film },
-              { time: '10:42:08', label: 'Forensic signals aggregated', detail: `Verdict: ${fd.verdict} | Manipulation: ${fd.manipulationType}`, icon: FileCheck },
-              { time: '10:42:10', label: 'Risk & threat rating issued', detail: `Threat Level: ${fd.threatLevel} | Action: ${fd.recommendedAction}`, icon: ShieldAlert }
+              { time: formatTimelineTime(1), label: 'Media container decoded', detail: `${currentRecord.identityDetails?.callerOrSender || 'Uploaded file'} loaded into multimodal analyzer`, icon: Clock },
+              { time: formatTimelineTime(3), label: 'MIME & frame extraction', detail: `${currentRecord.communicationDetails?.medium || 'File payload'} representative frames processed`, icon: FileImage },
+              { time: formatTimelineTime(6), label: 'Multimodal AI vision model scan', detail: 'Evaluated for synthetic synthesis, GAN seams, and diffusion artifacts', icon: Film },
+              { time: formatTimelineTime(8), label: 'Forensic signals aggregated', detail: `Verdict: ${fd.verdict} | Manipulation: ${fd.manipulationType}`, icon: FileCheck },
+              { time: formatTimelineTime(10), label: 'Risk & threat rating issued', detail: `Threat Level: ${fd.threatLevel} | Action: ${fd.recommendedAction || currentRecord.action}`, icon: ShieldAlert }
             ]
           };
         }
@@ -434,11 +450,11 @@ export const AnalysisResultView: React.FC<AnalysisResultViewProps> = ({
             }
           ],
           timeline: [
-            { time: '10:42:01', label: 'Media container decoded', detail: 'High-resolution frame buffer loaded for visual forensics', icon: Clock },
-            { time: '10:42:03', label: 'EXIF metadata scanned', detail: 'Software tampering markers & missing camera tags detected', icon: FileImage },
-            { time: '10:42:06', label: 'GAN artifact filter ran', detail: 'Facial boundary blending seams identified', icon: Film },
-            { time: '10:42:08', label: 'Document emblem verified', detail: 'Counterfeit government stamp recognized against database', icon: FileCheck },
-            { time: '10:42:10', label: 'Forgery verdict issued', detail: 'Deepfake & counterfeit document alert dispatched', icon: ShieldAlert }
+            { time: formatTimelineTime(1), label: 'Media container decoded', detail: `${currentRecord.identityDetails?.callerOrSender || 'High-resolution frame buffer'} loaded for visual forensics`, icon: Clock },
+            { time: formatTimelineTime(3), label: 'EXIF metadata scanned', detail: 'Software tampering markers & metadata integrity evaluated', icon: FileImage },
+            { time: formatTimelineTime(6), label: 'GAN artifact filter ran', detail: 'Facial boundary blending seams & generative indicators identified', icon: Film },
+            { time: formatTimelineTime(8), label: 'Visual authenticity verified', detail: 'Emblems and image integrity evaluated against baseline', icon: FileCheck },
+            { time: formatTimelineTime(10), label: 'Forensic verdict issued', detail: `${currentRecord.risk} risk visual assessment dispatched`, icon: ShieldAlert }
           ]
         };
       }
@@ -500,11 +516,11 @@ export const AnalysisResultView: React.FC<AnalysisResultViewProps> = ({
             breakdown,
             evidence,
             timeline: [
-              { time: '10:42:01', label: 'URL payload ingested', detail: `${currentRecord.identityDetails?.callerOrSender || 'Target URL'} parsed and syntax validated`, icon: Clock },
-              { time: '10:42:03', label: 'Domain & protocol inspection', detail: 'Evaluated host structure, HTTPS encryption, and homoglyphs', icon: Globe },
-              { time: '10:42:06', label: 'Cybersecurity heuristics & AI reasoning', detail: 'Analyzed typosquatting, credential parameters, and reputation signals', icon: Lock },
-              { time: '10:42:08', label: 'Threat indicators aggregated', detail: `Verdict: ${fd.verdict} | Risk: ${fd.threatLevel}`, icon: AlertTriangle },
-              { time: '10:42:10', label: 'Final threat rating issued', detail: `Threat Level: ${fd.threatLevel} | Action: ${fd.recommendedAction || currentRecord.action}`, icon: ShieldAlert }
+              { time: formatTimelineTime(1), label: 'URL payload ingested', detail: `${currentRecord.identityDetails?.callerOrSender || 'Target URL'} parsed and syntax validated`, icon: Clock },
+              { time: formatTimelineTime(3), label: 'Domain & protocol inspection', detail: 'Evaluated host structure, HTTPS encryption, and homoglyphs', icon: Globe },
+              { time: formatTimelineTime(6), label: 'Cybersecurity heuristics & AI reasoning', detail: 'Analyzed typosquatting, credential parameters, and reputation signals', icon: Lock },
+              { time: formatTimelineTime(8), label: 'Threat indicators aggregated', detail: `Verdict: ${fd.verdict} | Risk: ${fd.threatLevel}`, icon: AlertTriangle },
+              { time: formatTimelineTime(10), label: 'Final threat rating issued', detail: `Threat Level: ${fd.threatLevel} | Action: ${fd.recommendedAction || currentRecord.action}`, icon: ShieldAlert }
             ]
           };
         }
@@ -555,11 +571,11 @@ export const AnalysisResultView: React.FC<AnalysisResultViewProps> = ({
             }
           ],
           timeline: [
-            { time: '10:42:01', label: 'URL sandbox instantiated', detail: 'Headless isolated browser sandbox launched for URL inspection', icon: Clock },
-            { time: '10:42:03', label: 'Domain WHOIS queried', detail: 'Newly registered domain (< 4 days old) flagged on high-risk ASN', icon: Globe },
-            { time: '10:42:06', label: 'Typosquatting evaluated', detail: 'Homoglyph character substitution detected mimicking brand portal', icon: AlertTriangle },
-            { time: '10:42:08', label: 'DOM form inputs scraped', detail: 'Phishing kit credential harvesting forms detected in HTML payload', icon: KeyRound },
-            { time: '10:42:10', label: 'Domain blacklisted', detail: 'Critical phishing verdict issued and automatic browser block primed', icon: ShieldAlert }
+            { time: formatTimelineTime(1), label: 'URL sandbox instantiated', detail: `${currentRecord.identityDetails?.callerOrSender || 'Target URL'} loaded in headless sandbox`, icon: Clock },
+            { time: formatTimelineTime(3), label: 'Domain WHOIS queried', detail: 'Newly registered domain (< 4 days old) flagged on high-risk ASN', icon: Globe },
+            { time: formatTimelineTime(6), label: 'Typosquatting evaluated', detail: 'Homoglyph character substitution detected mimicking brand portal', icon: AlertTriangle },
+            { time: formatTimelineTime(8), label: 'DOM form inputs scraped', detail: 'Phishing kit credential harvesting forms detected in HTML payload', icon: KeyRound },
+            { time: formatTimelineTime(10), label: 'Domain blacklisted', detail: `${currentRecord.risk} risk verdict issued and browser security policy updated`, icon: ShieldAlert }
           ]
         };
       }
@@ -695,17 +711,30 @@ export const AnalysisResultView: React.FC<AnalysisResultViewProps> = ({
               </button>
 
               {isTakeActionMenuOpen && (
-                <div className="absolute right-0 mt-2 w-56 rounded-xl bg-slate-900 border border-slate-700 shadow-2xl p-1.5 z-50 animate-fadeIn text-xs">
+                <div className="absolute right-0 mt-2 w-64 rounded-xl bg-slate-900 border border-slate-700 shadow-2xl p-1.5 z-50 animate-fadeIn text-xs">
                   <button
                     onClick={() => {
                       setIsTakeActionMenuOpen(false);
-                      onVerifyIndependently();
+                      if (onVerifySafe) onVerifySafe();
+                      else onVerifyIndependently();
                     }}
-                    className="w-full text-left px-3 py-2 rounded-lg text-slate-200 hover:bg-slate-800 flex items-center gap-2 cursor-pointer"
+                    className="w-full text-left px-3 py-2 rounded-lg text-emerald-300 hover:bg-emerald-950/70 flex items-center gap-2 cursor-pointer font-medium"
                   >
-                    <CheckCircle2 className="w-4 h-4 text-cyan-400" />
-                    <span>Verify Independently</span>
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                    <span>Verify as Legitimate (Safe)</span>
                   </button>
+                  <button
+                    onClick={() => {
+                      setIsTakeActionMenuOpen(false);
+                      if (onRejectThreat) onRejectThreat();
+                      else onBlockCaller();
+                    }}
+                    className="w-full text-left px-3 py-2 rounded-lg text-red-300 hover:bg-red-950/70 flex items-center gap-2 cursor-pointer font-medium"
+                  >
+                    <XCircle className="w-4 h-4 text-red-400" />
+                    <span>Reject as Scam (Threat)</span>
+                  </button>
+                  <div className="my-1 border-t border-slate-800" />
                   <button
                     onClick={() => {
                       setIsTakeActionMenuOpen(false);
@@ -714,7 +743,7 @@ export const AnalysisResultView: React.FC<AnalysisResultViewProps> = ({
                     className="w-full text-left px-3 py-2 rounded-lg text-red-300 hover:bg-red-950/60 flex items-center gap-2 cursor-pointer"
                   >
                     <PhoneOff className="w-4 h-4 text-red-400" />
-                    <span>Block Caller</span>
+                    <span>Block Origin / Number</span>
                   </button>
                   <button
                     onClick={() => {
@@ -724,7 +753,17 @@ export const AnalysisResultView: React.FC<AnalysisResultViewProps> = ({
                     className="w-full text-left px-3 py-2 rounded-lg text-amber-300 hover:bg-amber-950/60 flex items-center gap-2 cursor-pointer"
                   >
                     <Flag className="w-4 h-4 text-amber-400" />
-                    <span>Report Fraud</span>
+                    <span>Report Fraud (1930 Helpline)</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      setIsTakeActionMenuOpen(false);
+                      onVerifyIndependently();
+                    }}
+                    className="w-full text-left px-3 py-2 rounded-lg text-slate-300 hover:bg-slate-800 flex items-center gap-2 cursor-pointer"
+                  >
+                    <Radio className="w-4 h-4 text-cyan-400" />
+                    <span>Verify Out-of-Band (Directory)</span>
                   </button>
                 </div>
               )}
@@ -741,7 +780,7 @@ export const AnalysisResultView: React.FC<AnalysisResultViewProps> = ({
             </button>
 
             <button
-              onClick={() => navigator.clipboard?.writeText('VERITY Incident VRY-1042: High Risk (87/100) - Unverified Caller requesting Wire Transfer & OTP')}
+              onClick={() => navigator.clipboard?.writeText(`VERITY Incident ${currentRecord.id}: ${currentRecord.risk} Risk (${currentRecord.score}/100) - ${currentRecord.subject}`)}
               className="p-2.5 text-xs font-medium text-slate-400 bg-slate-900 hover:bg-slate-800 border border-slate-800 rounded-lg transition-colors cursor-pointer"
               title="Copy incident summary"
             >

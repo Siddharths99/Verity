@@ -8,19 +8,33 @@ import {
   FileAudio, 
   CreditCard, 
   CheckCircle2, 
-  AlertOctagon
+  XCircle,
+  ShieldCheck,
+  AlertOctagon,
+  Eye,
+  Shield,
+  PhoneOff,
+  Flag
 } from 'lucide-react';
 
 interface AnalysisDetailModalProps {
   record: AnalysisRecord | null;
   onClose: () => void;
   onTakeAction: (recordId: string, action: string) => void;
+  onViewIncidentDossier?: () => void;
+  onVerifyIndependently?: (record: AnalysisRecord) => void;
+  onBlockCaller?: (record: AnalysisRecord) => void;
+  onReportFraud?: (record: AnalysisRecord) => void;
 }
 
 export const AnalysisDetailModal: React.FC<AnalysisDetailModalProps> = ({
   record,
   onClose,
-  onTakeAction
+  onTakeAction,
+  onViewIncidentDossier,
+  onVerifyIndependently,
+  onBlockCaller,
+  onReportFraud
 }) => {
   // Close on Escape key press
   useEffect(() => {
@@ -78,7 +92,19 @@ export const AnalysisDetailModal: React.FC<AnalysisDetailModalProps> = ({
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            {record.action === 'Verified' && (
+              <span className="px-2.5 py-1 rounded-md text-xs font-bold font-mono bg-emerald-500/20 text-emerald-300 border border-emerald-500/50 flex items-center gap-1">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                VERIFIED SAFE
+              </span>
+            )}
+            {record.action === 'Rejected' && (
+              <span className="px-2.5 py-1 rounded-md text-xs font-bold font-mono bg-red-500/20 text-red-300 border border-red-500/50 flex items-center gap-1">
+                <XCircle className="w-3.5 h-3.5 text-red-400" />
+                REJECTED (THREAT)
+              </span>
+            )}
             <span className={`px-3 py-1 rounded-md text-xs font-bold font-mono border ${getRiskHeaderBadge(record.risk)}`}>
               {record.risk} RISK · {record.score}/100
             </span>
@@ -270,31 +296,90 @@ export const AnalysisDetailModal: React.FC<AnalysisDetailModalProps> = ({
 
         {/* Footer Actions */}
         <div className="p-5 border-t border-slate-800 bg-slate-950/60 flex flex-wrap items-center justify-between gap-3">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 text-xs font-semibold text-slate-300 bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors cursor-pointer"
-          >
-            Close
-          </button>
-
           <div className="flex items-center gap-2">
             <button
+              onClick={onClose}
+              className="px-4 py-2 text-xs font-semibold text-slate-300 bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors cursor-pointer"
+            >
+              Close
+            </button>
+            {onViewIncidentDossier && (
+              <button
+                onClick={() => {
+                  onClose();
+                  onViewIncidentDossier();
+                }}
+                className="px-3 py-2 text-xs font-semibold text-cyan-300 bg-cyan-950/60 hover:bg-cyan-900/60 border border-cyan-500/40 rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer"
+                title="Open full interactive forensic dossier"
+              >
+                <Eye className="w-3.5 h-3.5 text-cyan-400" />
+                <span>Full Incident Dossier</span>
+              </button>
+            )}
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            {onVerifyIndependently && (
+              <button
+                type="button"
+                onClick={() => {
+                  onVerifyIndependently(record);
+                  onClose();
+                }}
+                className="px-3.5 py-2 text-xs font-bold text-slate-950 bg-cyan-400 hover:bg-cyan-300 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer shadow-sm"
+              >
+                <Shield className="w-3.5 h-3.5" />
+                <span>Verify Independently</span>
+              </button>
+            )}
+
+            {onBlockCaller && (
+              <button
+                type="button"
+                onClick={() => {
+                  onBlockCaller(record);
+                  onClose();
+                }}
+                className="px-3.5 py-2 text-xs font-semibold text-white bg-red-600 hover:bg-red-500 rounded-lg transition-colors flex items-center gap-1.5 shadow-md shadow-red-950 cursor-pointer"
+              >
+                <PhoneOff className="w-3.5 h-3.5" />
+                <span>Block Sender / Blacklist</span>
+              </button>
+            )}
+
+            {onReportFraud && (
+              <button
+                type="button"
+                onClick={() => {
+                  onReportFraud(record);
+                  onClose();
+                }}
+                className="px-3.5 py-2 text-xs font-semibold text-amber-300 bg-amber-950/70 hover:bg-amber-900/80 border border-amber-500/40 rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer"
+              >
+                <Flag className="w-3.5 h-3.5" />
+                <span>Report Fraud (1930)</span>
+              </button>
+            )}
+
+            <button
               onClick={() => {
-                onTakeAction(record.id, 'Quarantined');
+                onTakeAction(record.id, 'Verified');
                 onClose();
               }}
-              className="px-4 py-2 text-xs font-semibold text-amber-300 bg-amber-950/60 hover:bg-amber-900/60 border border-amber-500/40 rounded-lg transition-colors cursor-pointer"
+              className="px-3 py-2 text-xs font-semibold text-emerald-300 bg-emerald-950/70 hover:bg-emerald-900/80 border border-emerald-500/50 rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer"
             >
-              Quarantine Threat
+              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+              <span>Mark Safe</span>
             </button>
             <button
               onClick={() => {
-                onTakeAction(record.id, 'Blocked');
+                onTakeAction(record.id, 'Rejected');
                 onClose();
               }}
-              className="px-4 py-2 text-xs font-semibold text-white bg-red-600 hover:bg-red-500 rounded-lg transition-colors shadow-lg shadow-red-950 cursor-pointer"
+              className="px-3 py-2 text-xs font-semibold text-red-300 bg-red-950/70 hover:bg-red-900/80 border border-red-500/50 rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer"
             >
-              Block Caller & Number
+              <XCircle className="w-3.5 h-3.5 text-red-400" />
+              <span>Reject Threat</span>
             </button>
           </div>
         </div>

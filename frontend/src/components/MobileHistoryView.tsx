@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { 
   ChevronLeft, 
   Search, 
@@ -43,6 +43,173 @@ export const MobileHistoryView: React.FC<MobileHistoryViewProps> = ({
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedFilter, setSelectedFilter] = useState<string>('All');
   const [selectedRiskFilter, setSelectedRiskFilter] = useState<string>('All');
+  const [selectedDateFilter, setSelectedDateFilter] = useState<string>('Today');
+
+  // Relative reference times
+  const now = Date.now();
+  const startOfToday = useMemo(() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d.getTime();
+  }, []);
+  const sevenDaysAgo = useMemo(() => now - 7 * 24 * 60 * 60 * 1000, [now]);
+  const thirtyDaysAgo = useMemo(() => now - 30 * 24 * 60 * 60 * 1000, [now]);
+
+  // Fallback sample records if empty
+  const fallbackRecords: AnalysisRecord[] = useMemo(() => [
+    {
+      id: 'VRY-1042',
+      time: '10:42 AM',
+      timestamp: now - 1.5 * 3600 * 1000,
+      type: 'voice',
+      subject: 'Unknown Caller — Bank Verification Pretext',
+      risk: 'HIGH',
+      score: 87,
+      action: 'Verify',
+      identityDetails: {
+        callerOrSender: '+1 (555) 932-8411 (VoIP Gateway)',
+        verifiedIdentity: null,
+        identityTrustScore: 13,
+        spoofingIndicators: ['Untrusted Carrier Route', 'Attestation Header Flagged'],
+        isKnownContact: false,
+        stirShakenStatus: 'FAILED'
+      },
+      communicationDetails: {
+        medium: 'Voice Channel Stream',
+        syntheticProbability: 87,
+        linguisticUrgency: 'Extreme Pressure',
+        coercionTactics: ['Authority Impersonation', 'Urgent Deadline Demand'],
+        syntheticMarkers: ['Acoustic Discontinuity', 'Neural Vocoder Formants']
+      },
+      requestedActionDetails: {
+        actionType: 'Immediate Wire Transfer / Disclose OTP',
+        sensitivityLevel: 'Critical',
+        financialRiskUsd: 48500,
+        destinationRisk: 'High-Risk Account'
+      },
+      veritySummary: 'Neural vocoder formant jitter detected. Immediate financial transfer request.'
+    },
+    {
+      id: 'VRY-1041',
+      time: '09:18 AM',
+      timestamp: now - 3 * 3600 * 1000,
+      type: 'url',
+      subject: 'Bank Login Credential Spoof',
+      risk: 'CRITICAL',
+      score: 96,
+      action: 'Blocked',
+      identityDetails: {
+        callerOrSender: 'auth-security-chase.corp-verify.net',
+        verifiedIdentity: null,
+        identityTrustScore: 4,
+        spoofingIndicators: ['Punycode Domain', 'Unregistered SSL Issuer'],
+        isKnownContact: false,
+        stirShakenStatus: 'FAILED'
+      },
+      communicationDetails: {
+        medium: 'HTTPS URL Packet',
+        syntheticProbability: 96,
+        linguisticUrgency: 'Extreme Pressure',
+        coercionTactics: ['Account Lockout Threat'],
+        syntheticMarkers: ['Lookalike Glyphs']
+      },
+      requestedActionDetails: {
+        actionType: 'Disclose Net Banking Credentials',
+        sensitivityLevel: 'Critical',
+        financialRiskUsd: 25000,
+        destinationRisk: 'Unverified Domain'
+      },
+      veritySummary: 'Credential harvesting kit with punycode domain spoofing.'
+    },
+    {
+      id: 'VRY-1040',
+      time: 'Yesterday, 04:15 PM',
+      timestamp: now - 26 * 3600 * 1000,
+      type: 'message',
+      subject: 'Account Suspension Threat SMS',
+      risk: 'HIGH',
+      score: 71,
+      action: 'Blocked',
+      identityDetails: {
+        callerOrSender: '+1 (800) 492-1102 (SMS Gateway)',
+        verifiedIdentity: null,
+        identityTrustScore: 29,
+        spoofingIndicators: ['Bulk SMS Route'],
+        isKnownContact: false,
+        stirShakenStatus: 'FAILED'
+      },
+      communicationDetails: {
+        medium: 'SMS Gateway Payload',
+        syntheticProbability: 71,
+        linguisticUrgency: 'Extreme Pressure',
+        coercionTactics: ['Service Suspension'],
+        syntheticMarkers: ['Urgent Call-To-Action']
+      },
+      requestedActionDetails: {
+        actionType: 'Update Banking Details',
+        sensitivityLevel: 'High',
+        financialRiskUsd: 12000,
+        destinationRisk: 'Unverified Domain'
+      },
+      veritySummary: 'Urgent account suspension threat demanding ACH info update.'
+    },
+    {
+      id: 'VRY-1038',
+      time: '3 days ago',
+      timestamp: now - 3 * 24 * 3600 * 1000,
+      type: 'call',
+      subject: 'Utility Provider Helpline',
+      risk: 'LOW',
+      score: 22,
+      action: 'Safe',
+      identityDetails: {
+        callerOrSender: '+91 80012 34567 (BSNL)',
+        verifiedIdentity: 'BSNL Telecom Official',
+        identityTrustScore: 92,
+        spoofingIndicators: [],
+        isKnownContact: true,
+        stirShakenStatus: 'PASSED'
+      },
+      communicationDetails: {
+        medium: 'Cellular Voice',
+        syntheticProbability: 12,
+        linguisticUrgency: 'Normal',
+        coercionTactics: [],
+        syntheticMarkers: []
+      },
+      requestedActionDetails: {
+        actionType: 'Bill Inquiry',
+        sensitivityLevel: 'Low',
+        financialRiskUsd: 0,
+        destinationRisk: 'Legitimate'
+      },
+      veritySummary: 'Acoustic biometrics match registered voiceprint. Zero vocal jitter.'
+    }
+  ], [now]);
+
+  const activeDataset = useMemo(() => {
+    return records.length > 0 ? records : fallbackRecords;
+  }, [records, fallbackRecords]);
+
+  const isRecordInTimeframe = (r: AnalysisRecord, filter: string): boolean => {
+    const ts = r.timestamp || now;
+    if (filter === 'Today') return ts >= startOfToday;
+    if (filter === '7 Days') return ts >= sevenDaysAgo;
+    if (filter === '30 Days') return ts >= thirtyDaysAgo;
+    return true; // 'All Time'
+  };
+
+  // Timeframe-specific data
+  const timeframeRecords = useMemo(() => {
+    return activeDataset.filter((r) => isRecordInTimeframe(r, selectedDateFilter));
+  }, [activeDataset, selectedDateFilter, startOfToday, sevenDaysAgo, thirtyDaysAgo]);
+
+  const stats = useMemo(() => {
+    const total = timeframeRecords.length;
+    const threats = timeframeRecords.filter((r) => r.risk === 'CRITICAL' || r.risk === 'HIGH' || r.score >= 70).length;
+    const safe = timeframeRecords.filter((r) => r.risk === 'LOW' || r.score < 50 || r.action === 'Safe').length;
+    return { total, threats, safe };
+  }, [timeframeRecords]);
 
   const getTypeIcon = (type: ModalityType) => {
     switch (type) {
@@ -54,28 +221,39 @@ export const MobileHistoryView: React.FC<MobileHistoryViewProps> = ({
     }
   };
 
-  const filteredRecords = records.filter((r) => {
-    const matchesSearch =
-      r.subject.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      r.identityDetails.callerOrSender.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      r.id.toLowerCase().includes(searchQuery.toLowerCase());
-    
-    const matchesType =
-      selectedFilter === 'All' ||
-      (selectedFilter === 'Calls' && r.type === 'call') ||
-      (selectedFilter === 'Voice' && r.type === 'voice') ||
-      (selectedFilter === 'Messages' && r.type === 'message') ||
-      (selectedFilter === 'Media' && r.type === 'media') ||
-      (selectedFilter === 'URLs' && r.type === 'url');
+  const filteredRecords = useMemo(() => {
+    return activeDataset.filter((r) => {
+      // 1. Timeframe
+      if (!isRecordInTimeframe(r, selectedDateFilter)) return false;
 
-    const matchesRisk =
-      selectedRiskFilter === 'All' ||
-      (selectedRiskFilter === 'High/Crit' && (r.risk === 'CRITICAL' || r.risk === 'HIGH')) ||
-      (selectedRiskFilter === 'Medium' && r.risk === 'MEDIUM') ||
-      (selectedRiskFilter === 'Low' && r.risk === 'LOW');
+      // 2. Search
+      const matchesSearch =
+        r.subject.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        r.identityDetails.callerOrSender.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        r.id.toLowerCase().includes(searchQuery.toLowerCase());
+      if (!matchesSearch) return false;
 
-    return matchesSearch && matchesType && matchesRisk;
-  });
+      // 3. Modality
+      const matchesType =
+        selectedFilter === 'All' ||
+        (selectedFilter === 'Calls' && r.type === 'call') ||
+        (selectedFilter === 'Voice' && r.type === 'voice') ||
+        (selectedFilter === 'Messages' && r.type === 'message') ||
+        (selectedFilter === 'Media' && r.type === 'media') ||
+        (selectedFilter === 'URLs' && r.type === 'url');
+      if (!matchesType) return false;
+
+      // 4. Risk
+      const matchesRisk =
+        selectedRiskFilter === 'All' ||
+        (selectedRiskFilter === 'High/Crit' && (r.risk === 'CRITICAL' || r.risk === 'HIGH')) ||
+        (selectedRiskFilter === 'Medium' && r.risk === 'MEDIUM') ||
+        (selectedRiskFilter === 'Low' && r.risk === 'LOW');
+      if (!matchesRisk) return false;
+
+      return true;
+    });
+  }, [activeDataset, selectedDateFilter, searchQuery, selectedFilter, selectedRiskFilter, startOfToday, sevenDaysAgo, thirtyDaysAgo]);
 
   return (
     <div className="w-full max-w-full sm:max-w-md mx-auto pb-28 sm:pb-32 space-y-4 animate-fadeIn overflow-x-hidden">
@@ -95,7 +273,9 @@ export const MobileHistoryView: React.FC<MobileHistoryViewProps> = ({
           <h1 className="text-sm font-bold text-white tracking-tight font-sans">
             Forensic Audit Ledger
           </h1>
-          <span className="text-[9px] font-mono text-slate-400">128 Interactions Logged</span>
+          <span className="text-[9px] font-mono text-cyan-400 font-bold">
+            {filteredRecords.length} {filteredRecords.length === 1 ? 'Interaction' : 'Interactions'} ({selectedDateFilter})
+          </span>
         </div>
 
         <button
@@ -108,22 +288,46 @@ export const MobileHistoryView: React.FC<MobileHistoryViewProps> = ({
         </button>
       </div>
 
-      {/* Full Telemetry Banner */}
+      {/* Dynamic Telemetry Banner */}
       <div className="grid grid-cols-3 gap-2 text-center">
         <div className="p-3 rounded-xl bg-slate-900/80 border border-slate-800 shadow-sm">
           <span className="text-[10px] font-mono text-slate-400 block">Total Scans</span>
-          <span className="text-lg font-bold font-mono text-white block">128</span>
-          <span className="text-[9px] text-slate-500 font-mono">100% Attested</span>
+          <span className="text-lg font-bold font-mono text-white block">{stats.total}</span>
+          <span className="text-[9px] text-cyan-400 font-mono">{selectedDateFilter}</span>
         </div>
         <div className="p-3 rounded-xl bg-slate-900/80 border border-slate-800 shadow-sm">
           <span className="text-[10px] font-mono text-red-400 block">Threats Blocked</span>
-          <span className="text-lg font-bold font-mono text-red-400 block">32</span>
-          <span className="text-[9px] text-red-400/80 font-mono">25.0% Intercept</span>
+          <span className="text-lg font-bold font-mono text-red-400 block">{stats.threats}</span>
+          <span className="text-[9px] text-red-400/80 font-mono">Intercepted</span>
         </div>
         <div className="p-3 rounded-xl bg-slate-900/80 border border-slate-800 shadow-sm">
           <span className="text-[10px] font-mono text-emerald-400 block">Verified Safe</span>
-          <span className="text-lg font-bold font-mono text-emerald-400 block">96</span>
-          <span className="text-[9px] text-emerald-400/80 font-mono">75.0% Nominal</span>
+          <span className="text-lg font-bold font-mono text-emerald-400 block">{stats.safe}</span>
+          <span className="text-[9px] text-emerald-400/80 font-mono">Nominal</span>
+        </div>
+      </div>
+
+      {/* Timeframe Filter Buttons: Today, 7 Days, 30 Days, All Time */}
+      <div className="space-y-1.5">
+        <div className="flex items-center justify-between text-[11px] font-mono text-slate-400 px-0.5">
+          <span>Dedicated Timeframe:</span>
+          <span className="text-cyan-400 font-bold">{selectedDateFilter}</span>
+        </div>
+        <div className="grid grid-cols-4 gap-1 text-xs">
+          {['Today', '7 Days', '30 Days', 'All Time'].map((dateOpt) => (
+            <button
+              key={dateOpt}
+              type="button"
+              onClick={() => setSelectedDateFilter(dateOpt)}
+              className={`py-1.5 px-1 rounded-xl text-center text-[11px] font-mono transition-all cursor-pointer ${
+                selectedDateFilter === dateOpt
+                  ? 'bg-cyan-950 text-cyan-300 border border-cyan-500/50 font-bold shadow-[0_0_10px_rgba(6,182,212,0.25)]'
+                  : 'bg-slate-900/70 text-slate-400 hover:text-slate-200 border border-slate-800'
+              }`}
+            >
+              {dateOpt}
+            </button>
+          ))}
         </div>
       </div>
 
@@ -167,9 +371,24 @@ export const MobileHistoryView: React.FC<MobileHistoryViewProps> = ({
       {/* Full Records List */}
       <div className="space-y-2.5">
         {filteredRecords.length === 0 ? (
-          <div className="p-8 text-center text-slate-400 text-xs rounded-xl bg-slate-900/60 border border-slate-800 space-y-1">
-            <p className="font-semibold text-slate-300">No telemetry records found</p>
-            <p className="text-[11px] text-slate-500">Try adjusting your search terms or modality filter.</p>
+          <div className="p-8 text-center text-slate-400 text-xs rounded-xl bg-slate-900/60 border border-slate-800 space-y-2">
+            <Clock className="w-6 h-6 text-cyan-400/50 mx-auto" />
+            <p className="font-semibold text-slate-300">
+              No interactions in timeframe: "{selectedDateFilter}"
+            </p>
+            <p className="text-[11px] text-slate-500">
+              Try switching timeframe to "7 Days", "30 Days", or "All Time".
+            </p>
+            <button
+              onClick={() => {
+                setSelectedDateFilter('All Time');
+                setSelectedFilter('All');
+                setSearchQuery('');
+              }}
+              className="mt-2 px-3 py-1.5 rounded-lg bg-cyan-400 text-slate-950 font-bold text-xs"
+            >
+              Show All Time Records
+            </button>
           </div>
         ) : (
           filteredRecords.map((r) => (
@@ -222,107 +441,28 @@ export const MobileHistoryView: React.FC<MobileHistoryViewProps> = ({
                 </div>
               </div>
 
-              {/* Detail summary & action row with individual PDF download */}
-              <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between text-[10px] font-mono text-slate-400">
+              {/* Summary line */}
+              <p className="text-[11px] text-slate-400 line-clamp-2 font-sans leading-relaxed">
+                {r.veritySummary}
+              </p>
+
+              {/* Bottom footer: Time, Status & Action */}
+              <div className="flex items-center justify-between pt-1 border-t border-slate-800/60 text-[10px] font-mono">
+                <span className="text-slate-500">{r.time}</span>
                 <div className="flex items-center gap-1.5">
-                  <span className="text-slate-500">{r.id}</span>
-                  <span>·</span>
-                  <span className="text-slate-400">{r.time}</span>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      exportIncidentReportToPdf(r);
-                    }}
-                    title="Download this specific incident PDF report"
-                    className="px-2 py-0.5 rounded-lg bg-slate-950 border border-cyan-500/40 text-cyan-300 hover:bg-cyan-950 flex items-center gap-1 text-[10px] font-mono font-bold transition-colors cursor-pointer"
-                  >
-                    <Download className="w-3 h-3 text-cyan-400" />
-                    <span>PDF</span>
-                  </button>
-
-                  <div className="flex items-center gap-1 text-slate-300 group-hover:text-cyan-400 transition-colors font-sans font-medium text-[11px]">
-                    <span>Inspect</span>
-                    <ChevronRight className="w-3.5 h-3.5 text-cyan-400" />
-                  </div>
+                  <span className={`px-1.5 py-0.2 rounded ${
+                    r.action === 'Blocked' ? 'bg-red-950 text-red-400' :
+                    r.action === 'Safe' ? 'bg-emerald-950 text-emerald-400' :
+                    'bg-amber-950 text-amber-300'
+                  }`}>
+                    {r.action}
+                  </span>
+                  <ChevronRight className="w-3 h-3 text-slate-500 group-hover:text-cyan-400 group-hover:translate-x-0.5 transition-all" />
                 </div>
               </div>
             </div>
           ))
         )}
-      </div>
-
-      {/* Fixed Bottom Navigation Bar (5 Tabs) */}
-      <div className="fixed bottom-0 left-0 right-0 z-50 bg-slate-950/95 border-t border-slate-800/80 backdrop-blur-md px-4 py-1.5">
-        <div className="max-w-md mx-auto flex items-center justify-around">
-          
-          <button
-            onClick={() => onNavigateTab('dashboard')}
-            className={`flex flex-col items-center gap-0.5 text-[9px] font-mono transition-colors cursor-pointer py-0.5 ${
-              activeMobileTab === 'home' || activeMobileTab === 'dashboard'
-                ? 'text-cyan-400 font-bold'
-                : 'text-slate-500 hover:text-slate-300'
-            }`}
-          >
-            <Home className="w-3.5 h-3.5" />
-            <span>Home</span>
-          </button>
-
-          <button
-            onClick={() => onNavigateTab('analyze')}
-            className={`flex flex-col items-center gap-0.5 text-[9px] font-mono transition-colors cursor-pointer py-0.5 ${
-              activeMobileTab === 'analyze'
-                ? 'text-cyan-400 font-bold'
-                : 'text-slate-500 hover:text-slate-300'
-            }`}
-          >
-            <Plus className="w-3.5 h-3.5" />
-            <span>Analyze</span>
-          </button>
-
-          <button
-            onClick={() => onNavigateTab('history')}
-            className={`flex flex-col items-center gap-0.5 text-[9px] font-mono transition-colors cursor-pointer py-0.5 ${
-              activeMobileTab === 'history'
-                ? 'text-cyan-400 font-bold'
-                : 'text-slate-500 hover:text-slate-300'
-            }`}
-          >
-            <FileText className="w-3.5 h-3.5" />
-            <span>History</span>
-          </button>
-
-          <button
-            onClick={() => onNavigateTab('incidents')}
-            className={`flex flex-col items-center gap-0.5 text-[9px] font-mono transition-colors cursor-pointer py-0.5 relative ${
-              activeMobileTab === 'incidents'
-                ? 'text-red-400 font-bold'
-                : 'text-slate-500 hover:text-slate-300'
-            }`}
-          >
-            <div className="relative">
-              <Bell className="w-3.5 h-3.5" />
-              <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-red-500 animate-ping" />
-            </div>
-            <span>Alerts</span>
-          </button>
-
-          <button
-            onClick={() => onNavigateTab('settings')}
-            className={`flex flex-col items-center gap-0.5 text-[9px] font-mono transition-colors cursor-pointer py-0.5 ${
-              activeMobileTab === 'settings'
-                ? 'text-cyan-400 font-bold'
-                : 'text-slate-500 hover:text-slate-300'
-            }`}
-          >
-            <SlidersHorizontal className="w-3.5 h-3.5" />
-            <span>Settings</span>
-          </button>
-
-        </div>
       </div>
 
     </div>

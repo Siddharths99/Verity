@@ -161,3 +161,119 @@ def test_signal_scoring_endpoint(client):
     assert data["signal_breakdown"]["media_synthetic_score"] == 75.0
     assert data["signal_breakdown"]["intent_pressure_score"] == 80.0
 
+
+def test_caller_id_verification_unverified(client):
+    """
+    Never claim a caller is verified without authenticated evidence.
+    Standard mobile number with no authority claims returns UNVERIFIED.
+    """
+    res = client.post("/api/v1/call-protection/verify-caller", json={
+        "phone_number": "+91 98401 24590",
+        "demo_mode": False
+    })
+    assert res.status_code == 200
+    data = res.json()
+    assert data["is_valid_format"] is True
+    assert data["verification_state"] == "UNVERIFIED"
+    assert "Bharti Airtel" in data["carrier"] or "Airtel" in data["carrier"]
+    assert data["country"] == "India"
+    assert data["is_simulated"] is False
+
+
+def test_caller_id_verification_high_risk_impersonation(client):
+    """
+    When personal mobile number claims to be Bank or Police,
+    it must be classified as HIGH RISK / SUSPICIOUS.
+    """
+    res = client.post("/api/v1/call-protection/verify-caller", json={
+        "phone_number": "+91 98401 24590",
+        "claimed_identity": "HDFC Bank Fraud Department",
+        "demo_mode": False
+    })
+    assert res.status_code == 200
+    data = res.json()
+    assert data["verification_state"] == "HIGH RISK"
+    assert data["claimed_identity_match"] is False
+    assert len(data["spoofing_indicators"]) > 0
+
+
+def test_call_protection_session_lifecycle_and_actions(client):
+    """
+    Full live call protection flow:
+    Create session -> Ingest telemetry -> Execute actions -> Terminate and synchronize history
+    """
+    # 1. Start protection session
+    start_resp = client.post("/api/v1/call-protection/session/start", json={
+        "phone_number": "+91 98401 24590",
+        "claimed_identity": "State Bank of India Officer",
+        "demo_mode": False
+    })
+    assert start_resp.status_code == 200
+    session_data = start_resp.json()
+    sess_id = session_data["id"]
+    assert session_data["status"] == "ACTIVE"
+    assert session_data["threat_score"] >= 40.0
+
+    # 2. Ingest audio telemetry (synthetic vocoder flagged)
+    audio_resp = client.post(f"/api/v1/call-protection/session/{sess_id}/audio-telemetry", json={
+        "is_synthetic": True,
+        "synthetic_score": 91.0,
+        "pitch_jitter": 91.0,
+        "vocoder_detected": True
+    })
+    assert audio_resp.status_code == 200
+
+    # 3. Ingest transcript (urgency + OTP solicit)
+    transcript_resp = client.post(f"/api/v1/call-protection/session/{sess_id}/transcript", json={
+        "text": "Urgent! Your account is blocked immediately. Please share your 6-digit OTP code to avoid arrest."
+    })
+    assert transcript_resp.status_code == 200
+    assert transcript_resp.json()["threat_score"] >= 80.0
+
+    # 4. Check session details
+    sess_detail = client.get(f"/api/v1/call-protection/session/{sess_id}").json()
+    assert sess_detail["threat_level"] == "HIGH RISK"
+    assert sess_detail["quadrants"]["request"]["state"] == "Critical"
+    assert sess_detail["quadrants"]["voice"]["state"] == "AI Clone"
+    assert len(sess_detail["signals"]) >= 3
+
+    # 5. Check events log
+    evts_resp = client.get(f"/api/v1/call-protection/session/{sess_id}/events")
+    assert evts_resp.status_code == 200
+    events = evts_resp.json()
+    assert len(events) >= 3
+
+    # 6. Block caller
+    block_resp = client.post(f"/api/v1/call-protection/session/{sess_id}/action", json={
+        "action": "BLOCK_CALLER",
+        "reason": "AI clone bank impersonator"
+    })
+    assert block_resp.status_code == 200
+    assert "BLOCK_CALLER" in block_resp.json()["actions_taken"]
+
+    # Verify blocked list
+    blocked_list = client.get("/api/v1/call-protection/blocked-callers").json()
+    assert any(b["phone_number"] == "+91 98401 24590" for b in blocked_list)
+
+    # 7. Report fraud
+    report_resp = client.post(f"/api/v1/call-protection/session/{sess_id}/action", json={
+        "action": "REPORT_FRAUD"
+    })
+    assert report_resp.status_code == 200
+    assert "REPORT_FRAUD" in report_resp.json()["actions_taken"]
+
+    # 8. End call immediately
+    end_resp = client.post(f"/api/v1/call-protection/session/{sess_id}/action", json={
+        "action": "END_CALL"
+    })
+    assert end_resp.status_code == 200
+    assert end_resp.json()["session_status"] == "ENDED"
+
+    # Verify session is ended and persisted to ScanRecord
+    final_sess = client.get(f"/api/v1/call-protection/session/{sess_id}").json()
+    assert final_sess["status"] == "ENDED"
+
+    # Cleanup unblock
+    client.delete("/api/v1/call-protection/blocked-callers/+91 98401 24590")
+
+

@@ -13,7 +13,7 @@ router = APIRouter()
 _SCAN_ID_MAX_LEN = 64
 
 
-@router.get("", response_model=List[IncidentSummary], summary="List scan and incident history")
+@router.get("", response_model=List[IncidentDetail], summary="List scan and incident history")
 async def list_incidents(
     risk_level: Optional[str] = Query(None, description="Filter by risk tier: LOW, MEDIUM, HIGH, CRITICAL"),
     modality: Optional[str] = Query(None, description="Filter by modality: TEXT, AUDIO, IMAGE, URL, MULTIMODAL"),

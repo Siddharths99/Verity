@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   ChevronLeft,
   PhoneCall, 
@@ -30,15 +30,26 @@ import {
   Bell,
   SlidersHorizontal,
   ChevronRight,
-  Download
+  Download,
+  Info
 } from 'lucide-react';
 import { IndependentVerifyModal } from './IndependentVerifyModal';
+import { 
+  callProtectionService, 
+  CallProtectionSession, 
+  CallProtectionEvent,
+  CallSignalData,
+  QuadrantDetail 
+} from '../utils/callProtectionService';
 
 interface CallProtectionViewProps {
+  initialPhoneNumber?: string;
+  initialClaimedIdentity?: string;
+  isDemoMode?: boolean;
   onEndCall?: () => void;
-  onBlockCaller?: () => void;
-  onReportFraud?: () => void;
-  onVerifyIndependently?: () => void;
+  onBlockCaller?: (phoneNumber?: string) => void;
+  onReportFraud?: (phoneNumber?: string) => void;
+  onVerifyIndependently?: (phoneNumber?: string) => void;
   onBackToDashboard?: () => void;
   isMobile?: boolean;
   onNavigateTab?: (tab: string) => void;
@@ -46,6 +57,9 @@ interface CallProtectionViewProps {
 }
 
 export const CallProtectionView: React.FC<CallProtectionViewProps> = ({
+  initialPhoneNumber = '+91 98401 24590',
+  initialClaimedIdentity = 'Bank Representative',
+  isDemoMode = true,
   onEndCall = () => {},
   onBlockCaller = () => {},
   onReportFraud = () => {},
@@ -55,11 +69,165 @@ export const CallProtectionView: React.FC<CallProtectionViewProps> = ({
   onNavigateTab = () => {},
   activeMobileTab = 'home'
 }) => {
-  const [callDuration, setCallDuration] = useState<number>(14); // seconds elapsed
+  const [callDuration, setCallDuration] = useState<number>(0);
   const [isCallActive, setIsCallActive] = useState<boolean>(true);
   const [isVerifyModalOpen, setIsVerifyModalOpen] = useState<boolean>(false);
   const [actionNotice, setActionNotice] = useState<string | null>(null);
 
+  // Live session state
+  const [session, setSession] = useState<CallProtectionSession | null>(null);
+  const [callerNumber, setCallerNumber] = useState<string>(initialPhoneNumber);
+  const [claimedIdentity, setClaimedIdentity] = useState<string>(initialClaimedIdentity);
+  const [threatScore, setThreatScore] = useState<number>(45);
+  const [threatLevel, setThreatLevel] = useState<'TRUSTED' | 'CAUTION' | 'SUSPICIOUS' | 'HIGH RISK'>('CAUTION');
+  const [verificationState, setVerificationState] = useState<string>('SUSPICIOUS');
+  const [confidence, setConfidence] = useState<number | null>(94);
+  const [audioStatus, setAudioStatus] = useState<'UNAVAILABLE' | 'ACTIVE' | 'COMPLETED'>('ACTIVE');
+  const [signals, setSignals] = useState<CallSignalData[]>([]);
+  const [isDemo, setIsDemo] = useState<boolean>(isDemoMode);
+  const [eventsLog, setEventsLog] = useState<CallProtectionEvent[]>([]);
+
+  // Quadrants state
+  const [quadrants, setQuadrants] = useState<{
+    who: QuadrantDetail;
+    what: QuadrantDetail;
+    voice: QuadrantDetail;
+    request: QuadrantDetail;
+  }>({
+    who: {
+      state: 'Suspicious',
+      badge_color: 'orange',
+      title: 'Caller Identity',
+      headline: 'Unverified VoIP',
+      detail: 'Fails carrier STIR/SHAKEN certification.',
+      is_flagged: true
+    },
+    what: {
+      state: 'Coercive',
+      badge_color: 'red',
+      title: 'Communication',
+      headline: 'High Pressure',
+      detail: 'Coercive deadlines framing account lockdown.',
+      is_flagged: true
+    },
+    voice: {
+      state: 'AI Clone',
+      badge_color: 'purple',
+      title: 'Voice Authenticity',
+      headline: 'Synthetic Vocoder',
+      detail: 'Synthetic pitch discontinuities flagged at 91%.',
+      is_flagged: true
+    },
+    request: {
+      state: 'Critical',
+      badge_color: 'red',
+      title: 'Requested Action',
+      headline: 'OTP / Transfer',
+      detail: 'Demands verbal disclosure of 6-digit MFA passcode.',
+      is_flagged: true
+    }
+  });
+
+  const sessionRef = useRef<CallProtectionSession | null>(null);
+
+  // 1. Initialize or connect Call Protection session on mount
+  useEffect(() => {
+    let cleanupStream: (() => void) | null = null;
+    let isCancelled = false;
+
+    const initSession = async () => {
+      try {
+        const newSession = await callProtectionService.startProtectionSession({
+          phoneNumber: initialPhoneNumber,
+          claimedIdentity: initialClaimedIdentity,
+          demoMode: isDemoMode
+        });
+
+        if (isCancelled) return;
+
+        setSession(newSession);
+        sessionRef.current = newSession;
+        setCallerNumber(newSession.phone_number);
+        setClaimedIdentity(newSession.claimed_identity || initialClaimedIdentity);
+        setThreatScore(newSession.threat_score);
+        setThreatLevel(newSession.threat_level);
+        setVerificationState(newSession.verification_state);
+        setIsDemo(newSession.is_demo);
+        setAudioStatus(newSession.audio_analysis_status);
+
+        if (newSession.confidence !== undefined) {
+          setConfidence(newSession.confidence);
+        }
+        if (newSession.signals && newSession.signals.length > 0) {
+          setSignals(newSession.signals);
+        }
+        if (newSession.quadrants) {
+          setQuadrants(newSession.quadrants);
+        }
+
+        // Connect to live WebSocket / SSE event stream
+        cleanupStream = callProtectionService.connectLiveStream(
+          newSession.id,
+          (event: CallProtectionEvent) => {
+            if (isCancelled) return;
+            handleLiveStreamEvent(event);
+          },
+          (err) => {
+            console.warn('Call stream notification:', err);
+          }
+        );
+      } catch (err) {
+        console.warn('Protection session start fallback to local demo stream:', err);
+        // Fallback local initialization if backend is offline
+        setCallerNumber(initialPhoneNumber);
+        setClaimedIdentity(initialClaimedIdentity);
+        setIsDemo(true);
+      }
+    };
+
+    initSession();
+
+    return () => {
+      isCancelled = true;
+      if (cleanupStream) cleanupStream();
+    };
+  }, [initialPhoneNumber, initialClaimedIdentity, isDemoMode]);
+
+  // Handle incoming live stream events without page refresh
+  const handleLiveStreamEvent = (evt: CallProtectionEvent) => {
+    setEventsLog((prev) => [evt, ...prev]);
+
+    if (evt.threat_score !== undefined) {
+      setThreatScore(evt.threat_score);
+    }
+    if (evt.threat_level) {
+      setThreatLevel(evt.threat_level);
+    }
+    if (evt.confidence !== undefined) {
+      setConfidence(evt.confidence);
+    }
+
+    if (evt.payload) {
+      const p = evt.payload;
+      if (p.caller_id && p.caller_id.verification_state) {
+        setVerificationState(p.caller_id.verification_state);
+      }
+      if (p.verification_state) {
+        setVerificationState(p.verification_state);
+      }
+      if (p.audio_status) {
+        setAudioStatus(p.audio_status);
+      }
+      if (p.quadrants) {
+        setQuadrants((prev) => ({ ...prev, ...p.quadrants }));
+      }
+      if (p.signals && Array.isArray(p.signals)) {
+        setSignals(p.signals);
+      }
+    }
+  };
+
+  // Timer: Live Call Duration
   useEffect(() => {
     if (!isCallActive) return;
     const timer = setInterval(() => {
@@ -74,30 +242,72 @@ export const CallProtectionView: React.FC<CallProtectionViewProps> = ({
     return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
   };
 
-  const handleEndCallAction = () => {
+  // Action Handlers backed by backend
+  const handleEndCallAction = async () => {
     setIsCallActive(false);
     setActionNotice('Inbound call stream severed by user command');
+    if (session) {
+      try {
+        await callProtectionService.performCallAction(session.id, 'END_CALL', 'User initiated immediate termination');
+      } catch (e) {
+        console.warn('Backend call end action error:', e);
+      }
+    }
     onEndCall();
   };
 
-  const handleBlockAction = () => {
-    setActionNotice('Caller +91 XXXXX XXXXX added to carrier blacklist');
-    onBlockCaller();
+  const handleBlockAction = async () => {
+    setActionNotice(`Caller ${callerNumber} added to carrier blacklist`);
+    if (session) {
+      try {
+        await callProtectionService.performCallAction(session.id, 'BLOCK_CALLER', 'Flagged as high-risk impersonator');
+      } catch (e) {
+        console.warn('Backend block caller error:', e);
+      }
+    }
+    onBlockCaller(callerNumber);
   };
 
-  const handleReportAction = () => {
+  const handleReportAction = async () => {
     setActionNotice('Fraud telemetry dispatched to National Cybercrime Helpline (1930)');
-    onReportFraud();
+    if (session) {
+      try {
+        await callProtectionService.performCallAction(session.id, 'REPORT_FRAUD', 'Automated forensic packet generated');
+      } catch (e) {
+        console.warn('Backend report fraud error:', e);
+      }
+    }
+    onReportFraud(callerNumber);
   };
 
-  const handleOpenVerify = () => {
+  const handleOpenVerify = async () => {
     setIsVerifyModalOpen(true);
-    onVerifyIndependently();
+    if (session) {
+      try {
+        await callProtectionService.performCallAction(session.id, 'VERIFY_INDEPENDENTLY', 'User reviewing official directory');
+      } catch (e) {}
+    }
+    onVerifyIndependently(callerNumber);
   };
 
-  const warningSignals = [
+  // Warning signals: dynamically populated from live session or actual forensic heuristics
+  const activeWarningSignals = signals.length > 0 ? signals.map((sig, idx) => {
+    let IconComponent = AlertTriangle;
+    if (sig.category === 'IDENTITY' || sig.text.toLowerCase().includes('identity')) IconComponent = UserX;
+    else if (sig.category === 'VOICE' || sig.text.toLowerCase().includes('voice')) IconComponent = Mic;
+    else if (sig.category === 'INTENT' || sig.text.toLowerCase().includes('urgency')) IconComponent = MessageSquareWarning;
+    else if (sig.category === 'ACTION' && sig.text.toLowerCase().includes('financial')) IconComponent = CreditCard;
+    else if (sig.category === 'ACTION' && sig.text.toLowerCase().includes('otp')) IconComponent = KeyRound;
+
+    return {
+      id: sig.id || `ws-${idx + 1}`,
+      text: sig.text,
+      detail: sig.detail,
+      icon: IconComponent
+    };
+  }) : [
     { id: 'ws-1', text: 'Caller identity cannot be verified', detail: 'STIR/SHAKEN Level A cryptographic attestation header absent', icon: UserX },
-    { id: 'ws-2', text: 'Possible synthetic voice', detail: 'Vocoder formant anomalies and zero natural acoustic breath pauses', icon: Mic },
+    { id: 'ws-2', text: audioStatus === 'UNAVAILABLE' ? 'Audio analysis unavailable' : 'Possible synthetic voice', detail: audioStatus === 'UNAVAILABLE' ? 'Live audio telemetry feed not ingested' : 'Vocoder formant anomalies and zero natural acoustic breath pauses', icon: Mic },
     { id: 'ws-3', text: 'Urgency detected', detail: 'High-pressure linguistic coercive deadline framing', icon: MessageSquareWarning },
     { id: 'ws-4', text: 'Financial request detected', detail: 'Active solicitation for urgent account fund re-routing', icon: CreditCard },
     { id: 'ws-5', text: 'OTP request detected', detail: 'Direct verbal demand for one-time SMS verification token', icon: KeyRound }
@@ -199,6 +409,21 @@ export const CallProtectionView: React.FC<CallProtectionViewProps> = ({
         </div>
       )}
 
+      {/* DEMO / SIMULATION MODE NOTICE (Required by Item 8) */}
+      {isDemo && (
+        <div className="p-2 sm:p-2.5 rounded-lg bg-amber-950/40 border border-amber-500/40 text-amber-300 text-[11px] font-mono flex items-center justify-between gap-2 animate-fadeIn">
+          <div className="flex items-center gap-2">
+            <Info className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+            <span>
+              <strong>DEMO / SIMULATED MODE:</strong> Live simulated telephony telemetry stream active for testing. Never presented as real detection.
+            </span>
+          </div>
+          <span className="px-2 py-0.5 rounded bg-amber-900/60 text-amber-200 text-[10px] font-bold shrink-0">
+            SIMULATED
+          </span>
+        </div>
+      )}
+
       {/* Action Notification Banner */}
       {actionNotice && (
         <div className="p-2.5 rounded-lg bg-cyan-950/60 border border-cyan-500/40 text-cyan-300 text-[11px] font-mono flex items-center justify-between gap-2 animate-fadeIn">
@@ -224,13 +449,19 @@ export const CallProtectionView: React.FC<CallProtectionViewProps> = ({
         {/* Subtle glowing ring background */}
         <div className="absolute top-0 left-1/4 w-60 h-60 bg-cyan-500/5 blur-3xl pointer-events-none rounded-full" />
 
-        {/* Top: Caller Identity Block (FULL WIDTH — nothing positioned to the right of the number) */}
+        {/* Top: Caller Identity Block */}
         <div className="flex items-center gap-3 text-left">
           
           {/* Caller Avatar Emblem */}
-          <div className="relative flex items-center justify-center w-11 h-11 sm:w-13 sm:h-13 rounded-xl bg-slate-800 border-2 border-red-500/40 text-slate-300 shrink-0 shadow-md">
-            <UserX className="w-5 h-5 sm:w-6 sm:h-6 text-red-400" />
-            <div className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-red-600 border border-slate-900 flex items-center justify-center text-white">
+          <div className={`relative flex items-center justify-center w-11 h-11 sm:w-13 sm:h-13 rounded-xl bg-slate-800 border-2 shrink-0 shadow-md ${
+            verificationState === 'VERIFIED' ? 'border-emerald-500/40 text-emerald-300' :
+            verificationState === 'HIGH RISK' ? 'border-red-500/40 text-red-400' :
+            'border-amber-500/40 text-amber-400'
+          }`}>
+            <UserX className={`w-5 h-5 sm:w-6 sm:h-6 ${verificationState === 'VERIFIED' ? 'text-emerald-400' : 'text-red-400'}`} />
+            <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border border-slate-900 flex items-center justify-center text-white ${
+              verificationState === 'VERIFIED' ? 'bg-emerald-600' : 'bg-red-600'
+            }`}>
               <AlertTriangle className="w-2.5 h-2.5" />
             </div>
           </div>
@@ -240,30 +471,38 @@ export const CallProtectionView: React.FC<CallProtectionViewProps> = ({
               <span className="text-[9px] sm:text-[10px] font-mono uppercase tracking-widest text-cyan-400 font-bold block">
                 INCOMING CALL
               </span>
-              <span className="inline-flex items-center gap-1 text-[9px] sm:text-[10px] font-mono font-bold text-amber-400 bg-amber-950/70 px-1.5 py-0.2 rounded border border-amber-500/30 shrink-0">
-                <AlertTriangle className="w-2.5 h-2.5 text-amber-400" />
-                NOT VERIFIED
+              <span className={`inline-flex items-center gap-1 text-[9px] sm:text-[10px] font-mono font-bold px-1.5 py-0.2 rounded border shrink-0 ${
+                verificationState === 'VERIFIED'
+                  ? 'text-emerald-400 bg-emerald-950/70 border-emerald-500/30'
+                  : verificationState === 'HIGH RISK'
+                  ? 'text-red-400 bg-red-950/70 border-red-500/30'
+                  : 'text-amber-400 bg-amber-950/70 border-amber-500/30'
+              }`}>
+                <AlertTriangle className="w-2.5 h-2.5" />
+                {verificationState.replace('_', ' ')}
               </span>
             </div>
 
             <div className="text-base sm:text-lg font-bold font-mono text-white tracking-tight truncate">
-              +91 XXXXX XXXXX
+              {callerNumber}
             </div>
 
             <div className="text-[11px] text-slate-300 truncate">
-              Claimed: <strong className="text-white font-medium">Bank Representative</strong>
+              Claimed: <strong className="text-white font-medium">{claimedIdentity}</strong>
             </div>
           </div>
         </div>
 
-        {/* Bottom: Live Call Signal Activity Visualizer (Appears cleanly BELOW the number) */}
+        {/* Bottom: Live Call Signal Activity Visualizer */}
         <div className="p-2 sm:p-2.5 rounded-lg bg-slate-950/80 border border-slate-800/80 w-full space-y-1.5">
           <div className="flex items-center justify-between text-[9px] font-mono">
             <div className="flex items-center gap-1.5 text-red-400 font-bold">
               <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-ping shrink-0" />
-              <span>CARRIER LINE UNSECURED</span>
+              <span>{verificationState === 'VERIFIED' ? 'CARRIER LINE VERIFIED' : 'CARRIER LINE UNSECURED'}</span>
             </div>
-            <span className="text-slate-500">24.0 kHz HD Audio</span>
+            <span className="text-slate-500">
+              {audioStatus === 'ACTIVE' ? '24.0 kHz HD Audio Ingest' : 'Audio Analysis Unavailable'}
+            </span>
           </div>
 
           {/* Audio Waveform Bars Simulation */}
@@ -271,9 +510,9 @@ export const CallProtectionView: React.FC<CallProtectionViewProps> = ({
             {[35, 65, 80, 50, 30, 75, 95, 60, 40, 85, 65, 30, 70, 55, 90, 35, 50, 80, 60, 40].map((h, i) => (
               <span
                 key={i}
-                className="w-1 bg-cyan-400 rounded-full animate-pulse flex-1 max-w-[4px]"
+                className={`w-1 rounded-full flex-1 max-w-[4px] ${audioStatus === 'ACTIVE' ? 'bg-cyan-400 animate-pulse' : 'bg-slate-700'}`}
                 style={{
-                  height: `${h}%`,
+                  height: audioStatus === 'ACTIVE' ? `${h}%` : '20%',
                   animationDelay: `${i * 60}ms`
                 }}
               />
@@ -281,8 +520,10 @@ export const CallProtectionView: React.FC<CallProtectionViewProps> = ({
           </div>
 
           <div className="flex items-center justify-between text-[8px] sm:text-[9px] font-mono text-slate-500 pt-1 border-t border-slate-800/60">
-            <span>Vocoder Spectral Ingest</span>
-            <span className="text-red-400 font-semibold">Pitch Jitter: 91%</span>
+            <span>{audioStatus === 'ACTIVE' ? 'Vocoder Spectral Ingest' : 'Media Stream: Offline'}</span>
+            <span className={audioStatus === 'ACTIVE' ? 'text-red-400 font-semibold' : 'text-slate-500'}>
+              {audioStatus === 'ACTIVE' ? 'Pitch Jitter: 91%' : 'No synthetic anomalies registered'}
+            </span>
           </div>
         </div>
 
@@ -291,26 +532,42 @@ export const CallProtectionView: React.FC<CallProtectionViewProps> = ({
       {/* ============================================================ */}
       {/* 3. REAL-TIME RISK (MATCHES PROTECTIVE PROTOCOL WINDOW STYLE) */}
       {/* ============================================================ */}
-      <div className="p-3 sm:p-4 rounded-xl bg-gradient-to-br from-red-950/40 via-slate-900 to-slate-900 border border-red-500/50 shadow-lg backdrop-blur-md space-y-3">
+      <div className={`p-3 sm:p-4 rounded-xl bg-gradient-to-br border shadow-lg backdrop-blur-md space-y-3 ${
+        threatLevel === 'HIGH RISK'
+          ? 'from-red-950/40 via-slate-900 to-slate-900 border-red-500/50'
+          : threatLevel === 'SUSPICIOUS'
+          ? 'from-amber-950/40 via-slate-900 to-slate-900 border-amber-500/50'
+          : 'from-cyan-950/40 via-slate-900 to-slate-900 border-slate-800'
+      }`}>
         
         {/* Header Block matching Protective Protocol typography */}
         <div className="space-y-0.5 text-left">
           <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-1.5 text-[10px] sm:text-[11px] font-mono font-bold text-red-400 uppercase tracking-wider">
-              <ShieldAlert className="w-3.5 h-3.5 shrink-0 text-red-400" />
+            <div className={`flex items-center gap-1.5 text-[10px] sm:text-[11px] font-mono font-bold uppercase tracking-wider ${
+              threatLevel === 'HIGH RISK' ? 'text-red-400' : 'text-amber-400'
+            }`}>
+              <ShieldAlert className="w-3.5 h-3.5 shrink-0" />
               <span>Threat Assessment</span>
             </div>
-            <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold bg-red-950/80 border border-red-500/40 text-red-400 shrink-0">
-              Score 94 / 100
+            <span className={`px-1.5 py-0.2 rounded text-[9px] font-mono font-bold border shrink-0 ${
+              threatLevel === 'HIGH RISK'
+                ? 'bg-red-950/80 border-red-500/40 text-red-400'
+                : 'bg-amber-950/80 border-amber-500/40 text-amber-400'
+            }`}>
+              Score {Math.round(threatScore)} / 100
             </span>
           </div>
 
           <h3 className="text-sm sm:text-base font-bold text-white tracking-tight">
-            Do not proceed with this call.
+            {threatLevel === 'HIGH RISK' ? 'Do not proceed with this call.' :
+             threatLevel === 'SUSPICIOUS' ? 'Exercise heightened caution.' :
+             threatLevel === 'CAUTION' ? 'Unverified inbound connection.' :
+             'Verified legitimate connection.'}
           </h3>
 
           <p className="text-[11px] sm:text-xs text-red-200/90 font-normal leading-relaxed">
-            Strong indicators of impersonation, synthetic AI voice cloning, and financial fraud.
+            {threatLevel === 'HIGH RISK' ? 'Strong indicators of impersonation, synthetic AI voice cloning, and financial fraud.' :
+             'Inbound line lacks certified STIR/SHAKEN Level A cryptographic attestation.'}
           </p>
         </div>
 
@@ -323,7 +580,9 @@ export const CallProtectionView: React.FC<CallProtectionViewProps> = ({
             <div className="space-y-0.5 min-w-0">
               <span className="text-slate-200 font-bold block text-[11px]">Active Impersonation Detected</span>
               <span className="text-slate-400 text-[9px] sm:text-[10px] block leading-snug">
-                Synthetic vocoder anomalies (91%) & unverified VoIP carrier ID
+                {audioStatus === 'ACTIVE' 
+                  ? 'Synthetic vocoder anomalies (91%) & unverified VoIP carrier ID' 
+                  : 'STIR/SHAKEN Level A absent & unverified carrier route'}
               </span>
             </div>
           </div>
@@ -349,19 +608,24 @@ export const CallProtectionView: React.FC<CallProtectionViewProps> = ({
               <span className="text-[10px] font-bold">VERITY Threat Score</span>
             </div>
             <div className="flex items-baseline gap-1">
-              <span className="text-sm sm:text-base font-black font-mono text-red-400">94</span>
+              <span className="text-sm sm:text-base font-black font-mono text-red-400">{Math.round(threatScore)}</span>
               <span className="text-[9px] text-slate-500 font-bold font-mono">/ 100</span>
             </div>
           </div>
           <div className="w-full bg-slate-900 rounded-full h-1.5 overflow-hidden border border-red-500/30">
-            <div className="bg-gradient-to-r from-red-600 via-red-500 to-amber-500 h-full w-[94%]" />
+            <div 
+              className="bg-gradient-to-r from-red-600 via-red-500 to-amber-500 h-full transition-all duration-500"
+              style={{ width: `${Math.min(100, Math.max(5, threatScore))}%` }}
+            />
           </div>
           <div className="flex items-center justify-between text-[9px] font-mono text-slate-400 pt-0.5">
             <span className="text-red-400 font-semibold flex items-center gap-1">
               <span className="w-1 h-1 rounded-full bg-red-500 animate-ping shrink-0" />
-              Immediate Intercept Mandated
+              {threatLevel === 'HIGH RISK' ? 'Immediate Intercept Mandated' : 'Continuous Telemetry Monitored'}
             </span>
-            <span className="text-slate-500">Confidence: 94%</span>
+            <span className="text-slate-500">
+              Confidence: {confidence ? `${Math.round(confidence)}%` : 'Calibrating'}
+            </span>
           </div>
         </div>
       </div>
@@ -387,15 +651,15 @@ export const CallProtectionView: React.FC<CallProtectionViewProps> = ({
                 WHO
               </span>
               <span className="text-[8px] sm:text-[9px] font-mono px-1.5 py-0.2 rounded bg-orange-950/70 text-orange-400 border border-orange-500/30 font-bold shrink-0">
-                ● Suspicious
+                ● {quadrants.who.state}
               </span>
             </div>
             <div>
-              <span className="text-[9px] font-mono text-slate-400 block">Caller Identity</span>
-              <span className="text-[11px] sm:text-xs font-bold text-white block mt-0.5 truncate">Unverified VoIP</span>
+              <span className="text-[9px] font-mono text-slate-400 block">{quadrants.who.title}</span>
+              <span className="text-[11px] sm:text-xs font-bold text-white block mt-0.5 truncate">{quadrants.who.headline}</span>
             </div>
             <p className="text-[9px] text-slate-400 border-t border-slate-800/80 pt-1 font-mono line-clamp-2">
-              Fails carrier STIR/SHAKEN certification.
+              {quadrants.who.detail}
             </p>
           </div>
 
@@ -406,15 +670,15 @@ export const CallProtectionView: React.FC<CallProtectionViewProps> = ({
                 WHAT
               </span>
               <span className="text-[8px] sm:text-[9px] font-mono px-1.5 py-0.2 rounded bg-red-950/70 text-red-400 border border-red-500/30 font-bold shrink-0">
-                ● Coercive
+                ● {quadrants.what.state}
               </span>
             </div>
             <div>
-              <span className="text-[9px] font-mono text-slate-400 block">Communication</span>
-              <span className="text-[11px] sm:text-xs font-bold text-white block mt-0.5 truncate">High Pressure</span>
+              <span className="text-[9px] font-mono text-slate-400 block">{quadrants.what.title}</span>
+              <span className="text-[11px] sm:text-xs font-bold text-white block mt-0.5 truncate">{quadrants.what.headline}</span>
             </div>
             <p className="text-[9px] text-slate-400 border-t border-slate-800/80 pt-1 font-mono line-clamp-2">
-              Coercive deadlines framing account lockdown.
+              {quadrants.what.detail}
             </p>
           </div>
 
@@ -425,15 +689,15 @@ export const CallProtectionView: React.FC<CallProtectionViewProps> = ({
                 VOICE
               </span>
               <span className="text-[8px] sm:text-[9px] font-mono px-1.5 py-0.2 rounded bg-purple-950/70 text-purple-400 border border-purple-500/30 font-bold shrink-0">
-                ● AI Clone
+                ● {quadrants.voice.state}
               </span>
             </div>
             <div>
-              <span className="text-[9px] font-mono text-slate-400 block">Voice Authenticity</span>
-              <span className="text-[11px] sm:text-xs font-bold text-white block mt-0.5 truncate">Synthetic Vocoder</span>
+              <span className="text-[9px] font-mono text-slate-400 block">{quadrants.voice.title}</span>
+              <span className="text-[11px] sm:text-xs font-bold text-white block mt-0.5 truncate">{quadrants.voice.headline}</span>
             </div>
             <p className="text-[9px] text-slate-400 border-t border-slate-800/80 pt-1 font-mono line-clamp-2">
-              Synthetic pitch discontinuities flagged at 91%.
+              {quadrants.voice.detail}
             </p>
           </div>
 
@@ -444,15 +708,15 @@ export const CallProtectionView: React.FC<CallProtectionViewProps> = ({
                 REQUEST
               </span>
               <span className="text-[8px] sm:text-[9px] font-mono px-1.5 py-0.2 rounded bg-red-950/70 text-red-400 border border-red-500/30 font-bold shrink-0">
-                ● Critical
+                ● {quadrants.request.state}
               </span>
             </div>
             <div>
-              <span className="text-[9px] font-mono text-slate-400 block">Requested Action</span>
-              <span className="text-[11px] sm:text-xs font-bold text-white block mt-0.5 truncate">OTP / Transfer</span>
+              <span className="text-[9px] font-mono text-slate-400 block">{quadrants.request.title}</span>
+              <span className="text-[11px] sm:text-xs font-bold text-white block mt-0.5 truncate">{quadrants.request.headline}</span>
             </div>
             <p className="text-[9px] text-slate-400 border-t border-slate-800/80 pt-1 font-mono line-clamp-2">
-              Demands verbal disclosure of 6-digit MFA passcode.
+              {quadrants.request.detail}
             </p>
           </div>
 
@@ -468,13 +732,15 @@ export const CallProtectionView: React.FC<CallProtectionViewProps> = ({
             <AlertTriangle className="w-3 h-3 text-orange-400" />
             <span>Detected Warning Signals</span>
           </h3>
-          <span className="text-[9px] sm:text-[10px] font-mono text-red-400 font-bold">5 High-Confidence Vectors</span>
+          <span className="text-[9px] sm:text-[10px] font-mono text-red-400 font-bold">
+            {activeWarningSignals.length} Flagged Vectors
+          </span>
         </div>
 
         {isMobile ? (
           /* Mobile Aligned Checklist Format */
           <div className="space-y-1.5">
-            {warningSignals.map((sig) => {
+            {activeWarningSignals.map((sig) => {
               const Icon = sig.icon;
               return (
                 <div
@@ -504,7 +770,7 @@ export const CallProtectionView: React.FC<CallProtectionViewProps> = ({
         ) : (
           /* Desktop 5-Column Grid */
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2.5">
-            {warningSignals.map((sig) => {
+            {activeWarningSignals.map((sig) => {
               const Icon = sig.icon;
               return (
                 <div
@@ -651,37 +917,59 @@ export const CallProtectionView: React.FC<CallProtectionViewProps> = ({
           
           <div className="p-2.5 rounded-lg bg-slate-950/80 border border-slate-800 space-y-0.5">
             <span className="text-[9px] text-slate-400 uppercase block font-bold">WHO?</span>
-            <span className="text-[11px] sm:text-xs font-bold text-orange-400 block truncate">Unverified Caller</span>
-            <span className="text-[9px] text-slate-500 block leading-tight">Failed Level A carrier validation</span>
+            <span className="text-[11px] sm:text-xs font-bold text-orange-400 block truncate">
+              {verificationState === 'VERIFIED' ? 'Verified Caller' : 'Unverified Caller'}
+            </span>
+            <span className="text-[9px] text-slate-500 block leading-tight">
+              {verificationState === 'VERIFIED' ? 'Passed Level A carrier validation' : 'Failed Level A carrier validation'}
+            </span>
           </div>
 
           <div className="p-2.5 rounded-lg bg-slate-950/80 border border-slate-800 space-y-0.5">
             <span className="text-[9px] text-slate-400 uppercase block font-bold">WHAT?</span>
-            <span className="text-[11px] sm:text-xs font-bold text-slate-200 block truncate">Bank Pretext Claim</span>
-            <span className="text-[9px] text-slate-500 block leading-tight">Impersonates institutional authority</span>
+            <span className="text-[11px] sm:text-xs font-bold text-slate-200 block truncate">
+              {claimedIdentity || 'Institutional Claim'}
+            </span>
+            <span className="text-[9px] text-slate-500 block leading-tight">
+              Impersonates institutional authority
+            </span>
           </div>
 
           <div className="p-2.5 rounded-lg bg-slate-950/80 border border-slate-800 space-y-0.5">
             <span className="text-[9px] text-slate-400 uppercase block font-bold">ACTION?</span>
-            <span className="text-[11px] sm:text-xs font-bold text-red-400 block truncate">Provide OTP & Wire</span>
-            <span className="text-[9px] text-slate-500 block leading-tight">Critical credential exposure vector</span>
+            <span className="text-[11px] sm:text-xs font-bold text-red-400 block truncate">
+              Provide OTP & Wire
+            </span>
+            <span className="text-[9px] text-slate-500 block leading-tight">
+              Critical credential exposure vector
+            </span>
           </div>
 
         </div>
 
-        {/* Verdict Callout Banner — Cleanly Aligned */}
-        <div className="p-2.5 sm:p-3 rounded-lg bg-red-950/60 border-2 border-red-500 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 text-left">
+        {/* Verdict Callout Banner */}
+        <div className={`p-2.5 sm:p-3 rounded-lg border-2 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 text-left ${
+          threatLevel === 'HIGH RISK'
+            ? 'bg-red-950/60 border-red-500'
+            : threatLevel === 'SUSPICIOUS'
+            ? 'bg-amber-950/60 border-amber-500'
+            : 'bg-emerald-950/60 border-emerald-500'
+        }`}>
           <div className="space-y-0.5">
             <span className="text-[9px] sm:text-[10px] font-mono uppercase tracking-wider text-red-400 font-bold block">
               CAN THIS INTERACTION BE TRUSTED?
             </span>
             <span className="text-xs sm:text-sm font-black text-white tracking-tight block">
-              NO — HIGH CONFIDENCE FRAUD RISK
+              {threatLevel === 'HIGH RISK' ? 'NO — HIGH CONFIDENCE FRAUD RISK' :
+               threatLevel === 'SUSPICIOUS' ? 'UNCERTAIN — CAUTION ADVISED' :
+               'YES — INTERACTION TRUSTED'}
             </span>
           </div>
 
-          <div className="px-2.5 py-1 rounded-md bg-red-600 text-white font-mono font-bold text-[10px] shadow-sm uppercase shrink-0">
-            Quarantine Mandated
+          <div className={`px-2.5 py-1 rounded-md text-white font-mono font-bold text-[10px] shadow-sm uppercase shrink-0 ${
+            threatLevel === 'HIGH RISK' ? 'bg-red-600' : 'bg-amber-600'
+          }`}>
+            {threatLevel === 'HIGH RISK' ? 'Quarantine Mandated' : 'Inspection Required'}
           </div>
         </div>
 
@@ -769,7 +1057,7 @@ export const CallProtectionView: React.FC<CallProtectionViewProps> = ({
       {/* Safe Verification Modal */}
       {isVerifyModalOpen && (
         <IndependentVerifyModal
-          callerNumber="+91 XXXXX XXXXX"
+          callerNumber={callerNumber}
           onClose={() => setIsVerifyModalOpen(false)}
           onConfirmVerified={() => {
             setIsVerifyModalOpen(false);
@@ -781,4 +1069,3 @@ export const CallProtectionView: React.FC<CallProtectionViewProps> = ({
     </div>
   );
 };
-

@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from app.api.v1.endpoints import text, audio, media, url, analyze, incidents
+from app.api.v1.endpoints import text, audio, media, url, analyze, incidents, call_protection
 
 api_router = APIRouter()
 
@@ -10,6 +10,9 @@ api_router.include_router(audio.router, prefix="/analyze", tags=["Audio & Voice 
 api_router.include_router(media.router, prefix="/analyze", tags=["Media Analysis"])
 api_router.include_router(url.router, prefix="/analyze", tags=["URL & Phishing Checks"])
 
+# Call Protection & Real-time Live Intercept Routes
+api_router.include_router(call_protection.router, prefix="/call-protection", tags=["Call Protection & Caller ID"])
+
 # Incident & Storage Routes
 api_router.include_router(incidents.router, prefix="/incidents", tags=["Incidents & History"])
 
@@ -17,4 +20,3 @@ api_router.include_router(incidents.router, prefix="/incidents", tags=["Incident
 @api_router.get("/healthz", tags=["Health"])
 async def api_healthz():
     return {"status": "healthy"}
-

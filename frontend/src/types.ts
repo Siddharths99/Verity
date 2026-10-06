@@ -2,7 +2,7 @@ export type ModalityType = 'call' | 'voice' | 'message' | 'media' | 'url';
 
 export type RiskLevel = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
 
-export type ActionType = 'Verify' | 'Block' | 'Review' | 'Safe' | 'Blocked';
+export type ActionType = 'Verify' | 'Block' | 'Review' | 'Safe' | 'Blocked' | 'Verified' | 'Rejected' | 'Flagged' | 'Quarantined' | 'Approved';
 
 export interface ForensicDetails {
   verdict: 'REAL' | 'AI_GENERATED' | 'MANIPULATED' | 'UNCERTAIN' | 'SUSPICIOUS' | 'SAFE' | 'SPAM' | 'MALICIOUS' | 'UNKNOWN';

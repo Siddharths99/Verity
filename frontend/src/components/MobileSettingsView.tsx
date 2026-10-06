@@ -30,6 +30,7 @@ import {
 import { UserProfile, ThemeMode } from '../types/user';
 import { lookupCarrierDetails } from '../utils/telecomLookup';
 import avatarImg from '../assets/images/avatar_security_analyst_1791195961743.jpg';
+import { getUserSettings, saveUserSettings, UserSettings, DEFAULT_USER_SETTINGS } from '../utils/userSettings';
 
 interface MobileSettingsViewProps {
   user: UserProfile;
@@ -62,19 +63,32 @@ export const MobileSettingsView: React.FC<MobileSettingsViewProps> = ({
   onOpenProfile,
   activeMobileTab = 'settings'
 }) => {
-  const [attestationLevel, setAttestationLevel] = useState<string>('level-a');
-  const [autoBlockThreshold, setAutoBlockThreshold] = useState<number>(85);
-  const [vocoderSensitivity, setVocoderSensitivity] = useState<string>('strict');
-  const [nlpUrgencyFilter, setNlpUrgencyFilter] = useState<boolean>(true);
-  const [quarantineMfaDemands, setQuarantineMfaDemands] = useState<boolean>(true);
-  const [familyAlerts, setFamilyAlerts] = useState<boolean>(true);
-  const [cyberCrimeReport, setCyberCrimeReport] = useState<boolean>(true);
+  const [userSettings, setUserSettings] = useState<UserSettings>(() => getUserSettings());
+  const [attestationLevel, setAttestationLevel] = useState<string>(() => userSettings.attestationLevel);
+  const [autoBlockThreshold, setAutoBlockThreshold] = useState<number>(() => userSettings.autoBlockThreshold);
+  const [vocoderSensitivity, setVocoderSensitivity] = useState<string>(() => userSettings.vocoderSensitivity);
+  const [nlpUrgencyFilter, setNlpUrgencyFilter] = useState<boolean>(() => userSettings.nlpUrgencyFilter);
+  const [quarantineMfaDemands, setQuarantineMfaDemands] = useState<boolean>(() => userSettings.quarantineMfaDemands);
+  const [familyAlerts, setFamilyAlerts] = useState<boolean>(() => userSettings.familyScamAlerts);
+  const [cyberCrimeReport, setCyberCrimeReport] = useState<boolean>(() => userSettings.cyberCrimeHelplineReport);
   const [isSaved, setIsSaved] = useState<boolean>(false);
 
   // Auto-detect network provider / SIM details from phone number
   const carrierInfo = lookupCarrierDetails(user.phoneNumber);
 
   const handleSave = () => {
+    const updated: UserSettings = {
+      ...userSettings,
+      attestationLevel: attestationLevel as any,
+      autoBlockThreshold,
+      vocoderSensitivity: vocoderSensitivity as any,
+      nlpUrgencyFilter,
+      quarantineMfaDemands,
+      familyScamAlerts: familyAlerts,
+      cyberCrimeHelplineReport: cyberCrimeReport
+    };
+    saveUserSettings(updated);
+    setUserSettings(updated);
     setIsSaved(true);
     onSaveSettings();
     setTimeout(() => setIsSaved(false), 2500);

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { AnalysisRecord, ModalityType, RiskLevel, ActionType } from '../types';
 import { exportIncidentReportToPdf } from '../utils/pdfExport';
 import { 
@@ -6,7 +6,7 @@ import {
   Mic, 
   MessageSquareText, 
   Film, 
-  Image as ImageIcon,
+  Image as ImageIcon, 
   Link2, 
   Search, 
   Filter, 
@@ -24,7 +24,8 @@ import {
   SlidersHorizontal,
   ExternalLink,
   Lock,
-  Download
+  Download,
+  RotateCcw
 } from 'lucide-react';
 
 interface HistoryViewProps {
@@ -36,6 +37,7 @@ interface HistoryViewProps {
 interface HistoryItem {
   id: string;
   time: string;
+  timestamp: number;
   type: string;
   typeCategory: 'call' | 'voice' | 'message' | 'image' | 'video' | 'url';
   subject: string;
@@ -57,15 +59,28 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
   const [selectedRiskFilter, setSelectedRiskFilter] = useState<string>('All Risks');
   const [selectedDateFilter, setSelectedDateFilter] = useState<string>('Today');
   const [currentPage, setCurrentPage] = useState<number>(1);
+  const pageSize = 8;
 
-  // Extended realistic dataset matching the brief
-  const sampleHistoryData: HistoryItem[] = [
+  // Relative reference times
+  const now = Date.now();
+  const startOfToday = useMemo(() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d.getTime();
+  }, []);
+  const sevenDaysAgo = useMemo(() => now - 7 * 24 * 60 * 60 * 1000, [now]);
+  const thirtyDaysAgo = useMemo(() => now - 30 * 24 * 60 * 60 * 1000, [now]);
+
+  // Calibrated sample history dataset with precise timestamps
+  const sampleHistoryData: HistoryItem[] = useMemo(() => [
+    // --- TODAY'S RECORDS ---
     {
       id: 'VRY-1042',
       time: '10:42 AM',
+      timestamp: now - 1.5 * 3600 * 1000, // Today, ~1.5h ago
       type: 'Voice',
       typeCategory: 'voice',
-      subject: 'Unknown Caller',
+      subject: 'Unknown Caller — Bank Pretext',
       callerOrSender: '+1 (555) 932-8411 (VoIP Gateway)',
       riskScore: 87,
       riskLevel: 'HIGH',
@@ -75,9 +90,10 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
     {
       id: 'VRY-1041',
       time: '09:18 AM',
+      timestamp: now - 3 * 3600 * 1000, // Today, ~3h ago
       type: 'URL',
       typeCategory: 'url',
-      subject: 'Bank Login',
+      subject: 'Bank Login Spoofing',
       callerOrSender: 'auth-security-chase.corp-verify.net',
       riskScore: 96,
       riskLevel: 'CRITICAL',
@@ -85,11 +101,27 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
       details: 'Credential harvesting kit with punycode domain spoofing.'
     },
     {
+      id: 'VRY-1043',
+      time: '08:05 AM',
+      timestamp: now - 4.5 * 3600 * 1000, // Today, ~4.5h ago
+      type: 'Call',
+      typeCategory: 'call',
+      subject: 'Corporate Desk Line',
+      callerOrSender: '+91 98210 93821 (Airtel)',
+      riskScore: 16,
+      riskLevel: 'LOW',
+      status: 'Trusted',
+      details: 'STIR/SHAKEN Level A verified. Line connection signed by trusted telecom gateway.'
+    },
+
+    // --- 7 DAYS (YESTERDAY & RECENT DAYS) ---
+    {
       id: 'VRY-1040',
-      time: 'Yesterday',
+      time: 'Yesterday, 04:15 PM',
+      timestamp: now - 26 * 3600 * 1000, // ~26h ago (Yesterday)
       type: 'Message',
       typeCategory: 'message',
-      subject: 'Unknown Sender',
+      subject: 'Account Suspension Notice',
       callerOrSender: '+1 (800) 492-1102 (SMS Gateway)',
       riskScore: 71,
       riskLevel: 'HIGH',
@@ -98,10 +130,11 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
     },
     {
       id: 'VRY-1039',
-      time: 'Yesterday',
+      time: 'Yesterday, 11:20 AM',
+      timestamp: now - 30 * 3600 * 1000, // ~30h ago (Yesterday)
       type: 'Image',
       typeCategory: 'image',
-      subject: 'Unknown Contact',
+      subject: 'Billing Invoice Inspection',
       callerOrSender: 'billing-receipt-scan.png',
       riskScore: 48,
       riskLevel: 'MEDIUM',
@@ -110,34 +143,39 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
     },
     {
       id: 'VRY-1038',
-      time: 'Oct 03',
+      time: '3 days ago',
+      timestamp: now - 3 * 24 * 3600 * 1000, // 3 days ago
       type: 'Call',
       typeCategory: 'call',
-      subject: '+91 XXXXX XXXXX',
-      callerOrSender: '+91 98210 93821 (Airtel)',
+      subject: 'Utility Provider Helpline',
+      callerOrSender: '+91 80012 34567 (BSNL)',
       riskScore: 22,
       riskLevel: 'LOW',
       status: 'Trusted',
-      details: 'STIR/SHAKEN Level A verified. Acoustic biometrics match registered voiceprint.'
+      details: 'Acoustic biometrics match registered voiceprint. Zero vocal jitter.'
     },
     {
       id: 'VRY-1037',
-      time: 'Oct 03',
+      time: '4 days ago',
+      timestamp: now - 4 * 24 * 3600 * 1000, // 4 days ago
       type: 'Video',
       typeCategory: 'video',
-      subject: 'Executive Briefing',
+      subject: 'Executive Townhall Clip',
       callerOrSender: 'CFO_TownHall_Clip.mp4',
       riskScore: 93,
       riskLevel: 'CRITICAL',
       status: 'Blocked',
       details: 'Deepfake synthetic facial reenactment and voice cloning match.'
     },
+
+    // --- 30 DAYS RECORDS ---
     {
       id: 'VRY-1036',
-      time: 'Oct 02',
+      time: '12 days ago',
+      timestamp: now - 12 * 24 * 3600 * 1000, // 12 days ago
       type: 'Call',
       typeCategory: 'call',
-      subject: 'Tech Support Desk',
+      subject: 'Remote Desktop Support Desk',
       callerOrSender: '+1 (888) 293-1002',
       riskScore: 82,
       riskLevel: 'HIGH',
@@ -146,7 +184,8 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
     },
     {
       id: 'VRY-1035',
-      time: 'Oct 01',
+      time: '18 days ago',
+      timestamp: now - 18 * 24 * 3600 * 1000, // 18 days ago
       type: 'Message',
       typeCategory: 'message',
       subject: 'Vendor Remittance Update',
@@ -155,8 +194,49 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
       riskLevel: 'LOW',
       status: 'Trusted',
       details: 'DKIM and SPF signed cryptographic sender verification passed.'
+    },
+    {
+      id: 'VRY-1034',
+      time: '24 days ago',
+      timestamp: now - 24 * 24 * 3600 * 1000, // 24 days ago
+      type: 'URL',
+      typeCategory: 'url',
+      subject: 'Customer Survey Form',
+      callerOrSender: 'feedback-rewards-card.com',
+      riskScore: 56,
+      riskLevel: 'MEDIUM',
+      status: 'Review',
+      details: 'Domain registered 48 hours ago. Requests personal identity attributes.'
+    },
+
+    // --- ALL TIME (OLDER ARCHIVAL) ---
+    {
+      id: 'VRY-1033',
+      time: '42 days ago',
+      timestamp: now - 42 * 24 * 3600 * 1000, // 42 days ago
+      type: 'Voice',
+      typeCategory: 'voice',
+      subject: 'Emergency Wire Request',
+      callerOrSender: '+1 (702) 843-9912',
+      riskScore: 94,
+      riskLevel: 'CRITICAL',
+      status: 'Blocked',
+      details: 'High-frequency voice cloning attempting CEO authorization override.'
+    },
+    {
+      id: 'VRY-1032',
+      time: '55 days ago',
+      timestamp: now - 55 * 24 * 3600 * 1000, // 55 days ago
+      type: 'Message',
+      typeCategory: 'message',
+      subject: 'Tax Refund Expedite Link',
+      callerOrSender: '+1 (800) 992-1200',
+      riskScore: 85,
+      riskLevel: 'HIGH',
+      status: 'Blocked',
+      details: 'Fraudulent refund claim with malicious APK payload attachment link.'
     }
-  ];
+  ], [now]);
 
   const getTypeIcon = (category: string) => {
     switch (category) {
@@ -243,35 +323,124 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
     }
   };
 
-  // Filter criteria
-  const filteredItems = sampleHistoryData.filter((item) => {
-    const matchesSearch =
-      item.subject.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.callerOrSender.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.details.toLowerCase().includes(searchQuery.toLowerCase());
+  // Dynamic user items mapped from records
+  const userHistoryItems: HistoryItem[] = useMemo(() => {
+    return records.map((r) => {
+      let typeCat: HistoryItem['typeCategory'] = 'call';
+      if (r.type === 'voice') typeCat = 'voice';
+      else if (r.type === 'message') typeCat = 'message';
+      else if (r.type === 'media') {
+        typeCat = r.subject.toLowerCase().includes('video') ? 'video' : 'image';
+      } else if (r.type === 'url') typeCat = 'url';
 
-    const matchesType =
-      selectedTypeFilter === 'All' ||
-      (selectedTypeFilter === 'Calls' && item.typeCategory === 'call') ||
-      (selectedTypeFilter === 'Voice' && item.typeCategory === 'voice') ||
-      (selectedTypeFilter === 'Messages' && item.typeCategory === 'message') ||
-      (selectedTypeFilter === 'Images' && item.typeCategory === 'image') ||
-      (selectedTypeFilter === 'Videos' && item.typeCategory === 'video') ||
-      (selectedTypeFilter === 'URLs' && item.typeCategory === 'url');
+      let displayStatus = r.action as string;
+      if (r.action === 'Verify') displayStatus = 'Needs Verification';
+      else if (r.action === 'Safe' || r.action === 'Verified') displayStatus = 'Trusted';
+      else if (r.action === 'Rejected' || r.action === 'Blocked') displayStatus = 'Blocked';
 
-    const matchesRisk =
-      selectedRiskFilter === 'All Risks' ||
-      item.riskLevel === selectedRiskFilter.toUpperCase();
+      return {
+        id: r.id,
+        time: r.time,
+        timestamp: r.timestamp || Date.now(),
+        type: r.type.charAt(0).toUpperCase() + r.type.slice(1),
+        typeCategory: typeCat,
+        subject: r.subject,
+        callerOrSender: r.identityDetails.callerOrSender,
+        riskScore: r.score,
+        riskLevel: r.risk,
+        status: displayStatus,
+        details: r.veritySummary
+      };
+    });
+  }, [records]);
 
-    return matchesSearch && matchesType && matchesRisk;
-  });
+  // Combine user records and sample data avoiding duplicate IDs
+  const combinedHistoryData: HistoryItem[] = useMemo(() => {
+    const existingIds = new Set(userHistoryItems.map((u) => u.id));
+    const uniqueSamples = sampleHistoryData.filter((s) => !existingIds.has(s.id));
+    return [...userHistoryItems, ...uniqueSamples];
+  }, [userHistoryItems, sampleHistoryData]);
+
+  // Timeframe filter evaluation helper
+  const isItemInTimeframe = (item: HistoryItem, filter: string): boolean => {
+    if (filter === 'Today') {
+      return item.timestamp >= startOfToday;
+    }
+    if (filter === '7 Days') {
+      return item.timestamp >= sevenDaysAgo;
+    }
+    if (filter === '30 Days') {
+      return item.timestamp >= thirtyDaysAgo;
+    }
+    return true; // 'All Time'
+  };
+
+  // Dynamic stats calculated for the selected timeframe
+  const timeframeItems = useMemo(() => {
+    return combinedHistoryData.filter((item) => isItemInTimeframe(item, selectedDateFilter));
+  }, [combinedHistoryData, selectedDateFilter, startOfToday, sevenDaysAgo, thirtyDaysAgo]);
+
+  const summaryMetrics = useMemo(() => {
+    const total = timeframeItems.length;
+    const highRisk = timeframeItems.filter((i) => i.riskLevel === 'HIGH').length;
+    const critical = timeframeItems.filter((i) => i.riskLevel === 'CRITICAL').length;
+    const protectedCount = timeframeItems.filter((i) => i.riskLevel === 'LOW' || i.status === 'Trusted').length;
+    return { total, highRisk, critical, protectedCount };
+  }, [timeframeItems]);
+
+  // Full filter criteria (Timeframe + Search + Channel + Risk)
+  const filteredItems = useMemo(() => {
+    return combinedHistoryData.filter((item) => {
+      // 1. Timeframe filter (Dedicated timeframe respective contents)
+      const matchesDate = isItemInTimeframe(item, selectedDateFilter);
+      if (!matchesDate) return false;
+
+      // 2. Search query
+      const matchesSearch =
+        item.subject.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        item.callerOrSender.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        item.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        item.details.toLowerCase().includes(searchQuery.toLowerCase());
+      if (!matchesSearch) return false;
+
+      // 3. Channel Type
+      const matchesType =
+        selectedTypeFilter === 'All' ||
+        (selectedTypeFilter === 'Calls' && item.typeCategory === 'call') ||
+        (selectedTypeFilter === 'Voice' && item.typeCategory === 'voice') ||
+        (selectedTypeFilter === 'Messages' && item.typeCategory === 'message') ||
+        (selectedTypeFilter === 'Images' && item.typeCategory === 'image') ||
+        (selectedTypeFilter === 'Videos' && item.typeCategory === 'video') ||
+        (selectedTypeFilter === 'URLs' && item.typeCategory === 'url');
+      if (!matchesType) return false;
+
+      // 4. Risk Level
+      const matchesRisk =
+        selectedRiskFilter === 'All Risks' ||
+        item.riskLevel === selectedRiskFilter.toUpperCase();
+      if (!matchesRisk) return false;
+
+      return true;
+    });
+  }, [combinedHistoryData, selectedDateFilter, searchQuery, selectedTypeFilter, selectedRiskFilter, startOfToday, sevenDaysAgo, thirtyDaysAgo]);
+
+  // Pagination calculation
+  const totalPages = Math.max(1, Math.ceil(filteredItems.length / pageSize));
+  const paginatedItems = useMemo(() => {
+    const startIdx = (currentPage - 1) * pageSize;
+    return filteredItems.slice(startIdx, startIdx + pageSize);
+  }, [filteredItems, currentPage, pageSize]);
 
   const handleRowClick = (item: HistoryItem) => {
+    const foundRecord = records.find((r) => r.id === item.id);
+    if (foundRecord) {
+      onSelectRecord(foundRecord);
+      return;
+    }
     const mappedRecord: AnalysisRecord = {
       id: item.id,
       time: item.time,
-      timestamp: Date.now(),
+      timestamp: item.timestamp,
       type: (item.typeCategory === 'image' || item.typeCategory === 'video') ? 'media' : item.typeCategory as ModalityType,
       subject: item.subject,
       risk: item.riskLevel as RiskLevel,
@@ -293,7 +462,7 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
         syntheticMarkers: item.riskScore > 60 ? ['Acoustic Discontinuity', 'Neural Vocoder Formants'] : []
       },
       requestedActionDetails: {
-        actionType: item.subject === 'Bank Login' ? 'Disclose Banking Credentials' : 'Execute Sensitive Wire / Disclose OTP',
+        actionType: item.subject.toLowerCase().includes('login') ? 'Disclose Banking Credentials' : 'Execute Sensitive Wire / Disclose OTP',
         sensitivityLevel: item.riskScore > 70 ? 'Critical' : 'Low',
         financialRiskUsd: item.riskScore > 70 ? 48500 : 0,
         destinationRisk: item.riskScore > 70 ? 'High-Risk Account' : 'Legitimate'
@@ -306,10 +475,15 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
 
   const handleDownloadItemPdf = (item: HistoryItem, e: React.MouseEvent) => {
     e.stopPropagation();
+    const foundRecord = records.find((r) => r.id === item.id);
+    if (foundRecord) {
+      exportIncidentReportToPdf(foundRecord, item.id);
+      return;
+    }
     const mappedRecord: AnalysisRecord = {
       id: item.id,
       time: item.time,
-      timestamp: Date.now(),
+      timestamp: item.timestamp,
       type: (item.typeCategory === 'image' || item.typeCategory === 'video') ? 'media' : item.typeCategory as ModalityType,
       subject: item.subject,
       risk: item.riskLevel as RiskLevel,
@@ -331,7 +505,7 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
         syntheticMarkers: item.riskScore > 60 ? ['Acoustic Discontinuity', 'Neural Vocoder Formants'] : []
       },
       requestedActionDetails: {
-        actionType: item.subject === 'Bank Login' ? 'Disclose Banking Credentials' : 'Execute Sensitive Wire / Disclose OTP',
+        actionType: item.subject.toLowerCase().includes('login') ? 'Disclose Banking Credentials' : 'Execute Sensitive Wire / Disclose OTP',
         sensitivityLevel: item.riskScore > 70 ? 'Critical' : 'Low',
         financialRiskUsd: item.riskScore > 70 ? 48500 : 0,
         destinationRisk: item.riskScore > 70 ? 'High-Risk Account' : 'Legitimate'
@@ -352,11 +526,11 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
           <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-white flex items-center gap-3">
             <span>Analysis History</span>
             <span className="text-xs font-mono font-bold px-2.5 py-0.5 rounded bg-cyan-950/80 text-cyan-300 border border-cyan-500/40 uppercase">
-              128 Records
+              {filteredItems.length} {filteredItems.length === 1 ? 'Record' : 'Records'} ({selectedDateFilter})
             </span>
           </h1>
           <p className="text-sm sm:text-base text-slate-300 font-normal leading-relaxed">
-            Review previous interactions analyzed by VERITY.
+            Review previous interactions analyzed by VERITY across chronological timeframes.
           </p>
         </div>
 
@@ -372,22 +546,22 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
       </div>
 
       {/* ============================================================ */}
-      {/* 2. TOP SUMMARY (4 COMPACT CARDS)                             */}
-      {/* Total Analyses: 128, High Risk: 24, Critical: 8, Protected: 96 */}
+      {/* 2. TOP SUMMARY (4 DYNAMIC METRIC CARDS)                      */}
+      {/* Dynamic based on active selected timeframe                   */}
       {/* ============================================================ */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         
-        {/* Card 1: Total Analyses */}
+        {/* Card 1: Total Analyses in Timeframe */}
         <div className="p-4 rounded-xl bg-slate-900/80 border border-slate-800 flex items-center justify-between shadow-sm backdrop-blur-sm">
           <div className="space-y-0.5">
             <span className="text-xs font-semibold uppercase tracking-wider text-slate-400 font-mono">
               Total Analyses
             </span>
             <div className="text-2xl sm:text-3xl font-extrabold font-mono text-white tracking-tight">
-              128
+              {summaryMetrics.total}
             </div>
-            <span className="text-[11px] text-slate-500 block font-mono">
-              Across all 5 channels
+            <span className="text-[11px] text-cyan-400 block font-mono">
+              In {selectedDateFilter}
             </span>
           </div>
           <div className="p-2.5 rounded-xl bg-cyan-500/10 text-cyan-400 border border-cyan-500/30">
@@ -402,7 +576,7 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
               High Risk
             </span>
             <div className="text-2xl sm:text-3xl font-extrabold font-mono text-orange-400 tracking-tight">
-              24
+              {summaryMetrics.highRisk}
             </div>
             <span className="text-[11px] text-orange-400/80 block font-mono">
               Flagged & Verified
@@ -420,7 +594,7 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
               Critical
             </span>
             <div className="text-2xl sm:text-3xl font-extrabold font-mono text-red-400 tracking-tight">
-              8
+              {summaryMetrics.critical}
             </div>
             <span className="text-[11px] text-red-400/80 block font-mono">
               Immediate Intercepts
@@ -438,7 +612,7 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
               Protected
             </span>
             <div className="text-2xl sm:text-3xl font-extrabold font-mono text-emerald-400 tracking-tight">
-              96
+              {summaryMetrics.protectedCount}
             </div>
             <span className="text-[11px] text-emerald-400/80 block font-mono">
               Zero-Trust Cleared
@@ -453,7 +627,7 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
 
       {/* ============================================================ */}
       {/* 3. FILTER / SEARCH AREA                                      */}
-      {/* Clean toolbar with Search, Channel Filters, Risk & Date      */}
+      {/* Dedicated Timeframe + Search + Modality + Risk               */}
       {/* ============================================================ */}
       <div className="p-4 rounded-2xl bg-slate-900/80 border border-slate-800 shadow-md backdrop-blur-sm space-y-3">
         
@@ -465,23 +639,29 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
             <input
               type="text"
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setCurrentPage(1);
+              }}
               placeholder="Search caller, message, URL or incident..."
               className="w-full pl-10 pr-4 py-2.5 text-xs bg-slate-950/80 border border-slate-800 rounded-xl text-slate-100 placeholder-slate-500 focus:outline-none focus:border-cyan-500 font-sans transition-colors"
             />
           </div>
 
-          {/* Date Filter */}
-          <div className="flex items-center gap-1.5 shrink-0">
+          {/* Timeframe Filter Buttons: Today, 7 Days, 30 Days, All Time */}
+          <div className="flex items-center gap-1.5 shrink-0 flex-wrap">
             <span className="text-xs font-mono text-slate-400 mr-1 hidden sm:inline">Timeframe:</span>
-            {['Today', '7 Days', '30 Days'].map((dateOpt) => (
+            {['Today', '7 Days', '30 Days', 'All Time'].map((dateOpt) => (
               <button
                 key={dateOpt}
                 type="button"
-                onClick={() => setSelectedDateFilter(dateOpt)}
+                onClick={() => {
+                  setSelectedDateFilter(dateOpt);
+                  setCurrentPage(1);
+                }}
                 className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
                   selectedDateFilter === dateOpt
-                    ? 'bg-cyan-950 text-cyan-300 border border-cyan-500/40 font-semibold'
+                    ? 'bg-cyan-950 text-cyan-300 border border-cyan-500/40 font-bold shadow-[0_0_10px_rgba(6,182,212,0.2)]'
                     : 'bg-slate-950/60 text-slate-400 hover:text-slate-200 border border-slate-800'
                 }`}
               >
@@ -501,10 +681,13 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
               <button
                 key={tab}
                 type="button"
-                onClick={() => setSelectedTypeFilter(tab)}
+                onClick={() => {
+                  setSelectedTypeFilter(tab);
+                  setCurrentPage(1);
+                }}
                 className={`px-3 py-1 rounded-md text-xs transition-all cursor-pointer font-medium ${
                   selectedTypeFilter === tab
-                    ? 'bg-slate-800 text-cyan-300 border border-cyan-500/30 shadow-sm'
+                    ? 'bg-slate-800 text-cyan-300 border border-cyan-500/30 shadow-sm font-semibold'
                     : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/40'
                 }`}
               >
@@ -518,7 +701,10 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
             <span className="text-xs font-mono text-slate-500">Risk:</span>
             <select
               value={selectedRiskFilter}
-              onChange={(e) => setSelectedRiskFilter(e.target.value)}
+              onChange={(e) => {
+                setSelectedRiskFilter(e.target.value);
+                setCurrentPage(1);
+              }}
               className="px-3 py-1 text-xs rounded-md bg-slate-950 border border-slate-800 text-slate-300 focus:outline-none focus:border-cyan-500 font-mono cursor-pointer"
             >
               <option value="All Risks">All Risks</option>
@@ -544,9 +730,9 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
             {/* Table Header */}
             <thead className="bg-slate-950/90 border-b border-slate-800 text-slate-400 font-semibold uppercase tracking-wider font-mono">
               <tr>
-                <th scope="col" className="py-3.5 px-4 w-28">TIME</th>
+                <th scope="col" className="py-3.5 px-4 w-32">TIME</th>
                 <th scope="col" className="py-3.5 px-4 w-28">TYPE</th>
-                <th scope="col" className="py-3.5 px-4">SUBJECT</th>
+                <th scope="col" className="py-3.5 px-4">SUBJECT & THREAT SUMMARY</th>
                 <th scope="col" className="py-3.5 px-4 w-28 text-right">RISK SCORE</th>
                 <th scope="col" className="py-3.5 px-4 w-32">RISK LEVEL</th>
                 <th scope="col" className="py-3.5 px-4 w-36">STATUS</th>
@@ -558,12 +744,34 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
             <tbody className="divide-y divide-slate-800/60 font-medium text-slate-200">
               {filteredItems.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="py-12 text-center text-slate-400">
-                    <p className="text-sm">No analysis history interactions found matching your filters.</p>
+                  <td colSpan={7} className="py-14 text-center text-slate-400">
+                    <div className="max-w-md mx-auto space-y-3">
+                      <Clock className="w-8 h-8 text-cyan-400/50 mx-auto" />
+                      <p className="text-sm font-semibold text-slate-200">
+                        No interactions found for timeframe: <span className="text-cyan-400 font-mono">"{selectedDateFilter}"</span>
+                      </p>
+                      <p className="text-xs text-slate-400 leading-relaxed font-sans">
+                        There are no recorded interactions in this specific timeframe matching your filters. Switch timeframe to explore historical interaction ledger.
+                      </p>
+                      <div className="pt-2 flex items-center justify-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedDateFilter('All Time');
+                            setSearchQuery('');
+                            setSelectedTypeFilter('All');
+                            setSelectedRiskFilter('All Risks');
+                          }}
+                          className="px-4 py-2 rounded-xl text-xs font-bold bg-cyan-400 hover:bg-cyan-300 text-slate-950 transition-all cursor-pointer shadow-md"
+                        >
+                          Show All Time Records
+                        </button>
+                      </div>
+                    </div>
                   </td>
                 </tr>
               ) : (
-                filteredItems.map((item) => (
+                paginatedItems.map((item) => (
                   <tr
                     key={item.id}
                     onClick={() => handleRowClick(item)}
@@ -571,7 +779,10 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
                   >
                     {/* 1. TIME */}
                     <td className="py-4 px-4 font-mono text-slate-400 whitespace-nowrap text-xs">
-                      {item.time}
+                      <div>
+                        <span>{item.time}</span>
+                        <span className="text-[10px] text-slate-600 block">{item.id}</span>
+                      </div>
                     </td>
 
                     {/* 2. TYPE */}
@@ -582,7 +793,7 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
                       </div>
                     </td>
 
-                    {/* 3. SUBJECT */}
+                    {/* 3. SUBJECT & DETAILS */}
                     <td className="py-4 px-4">
                       <div className="flex flex-col space-y-0.5">
                         <span className="font-bold text-slate-100 group-hover:text-cyan-300 transition-colors text-xs">
@@ -623,7 +834,7 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
                         <button
                           type="button"
                           onClick={(e) => handleDownloadItemPdf(item, e)}
-                          title="Download forensic PDF dossier for this individual event"
+                          title="Download forensic PDF dossier for this event"
                           className="px-2.5 py-1 text-xs font-semibold rounded-md bg-slate-900 hover:bg-slate-800 text-cyan-300 border border-cyan-500/40 hover:border-cyan-300 transition-all flex items-center gap-1 cursor-pointer shadow-xs"
                         >
                           <Download className="w-3.5 h-3.5 text-cyan-400" />
@@ -652,65 +863,69 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
 
         {/* ============================================================ */}
         {/* 5. PAGINATION & FOOTER                                       */}
-        {/* ← Previous | 1 2 3 4 | Next →                                */}
+        {/* Real dynamic slicing and page buttons                        */}
         {/* ============================================================ */}
-        <div className="p-4 bg-slate-950/90 border-t border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-400 font-mono">
-          
-          <div>
-            <span>Showing 1 to {filteredItems.length} of 128 interactions</span>
-          </div>
-
-          <div className="flex items-center gap-1.5">
+        {filteredItems.length > 0 && (
+          <div className="p-4 bg-slate-950/90 border-t border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-400 font-mono">
             
-            {/* Previous */}
-            <button
-              type="button"
-              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-              disabled={currentPage === 1}
-              className={`px-3 py-1.5 rounded-lg border text-xs flex items-center gap-1 transition-colors cursor-pointer ${
-                currentPage === 1
-                  ? 'bg-slate-900/40 border-slate-800 text-slate-600 cursor-not-allowed'
-                  : 'bg-slate-900 border-slate-700 text-slate-300 hover:bg-slate-800'
-              }`}
-            >
-              <ChevronLeft className="w-3.5 h-3.5" />
-              <span>Previous</span>
-            </button>
+            <div>
+              <span>
+                Showing {Math.min((currentPage - 1) * pageSize + 1, filteredItems.length)} to {Math.min(currentPage * pageSize, filteredItems.length)} of {filteredItems.length} interactions ({selectedDateFilter})
+              </span>
+            </div>
 
-            {/* Page numbers */}
-            {[1, 2, 3, 4].map((pageNum) => (
+            <div className="flex items-center gap-1.5">
+              
+              {/* Previous */}
               <button
-                key={pageNum}
                 type="button"
-                onClick={() => setCurrentPage(pageNum)}
-                className={`w-8 h-8 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                  currentPage === pageNum
-                    ? 'bg-cyan-950 text-cyan-300 border border-cyan-500/50 shadow-sm'
-                    : 'bg-slate-900/60 text-slate-400 hover:text-slate-200 border border-slate-800'
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className={`px-3 py-1.5 rounded-lg border text-xs flex items-center gap-1 transition-colors cursor-pointer ${
+                  currentPage === 1
+                    ? 'bg-slate-900/40 border-slate-800 text-slate-600 cursor-not-allowed'
+                    : 'bg-slate-900 border-slate-700 text-slate-300 hover:bg-slate-800'
                 }`}
               >
-                {pageNum}
+                <ChevronLeft className="w-3.5 h-3.5" />
+                <span>Previous</span>
               </button>
-            ))}
 
-            {/* Next */}
-            <button
-              type="button"
-              onClick={() => setCurrentPage((p) => Math.min(4, p + 1))}
-              disabled={currentPage === 4}
-              className={`px-3 py-1.5 rounded-lg border text-xs flex items-center gap-1 transition-colors cursor-pointer ${
-                currentPage === 4
-                  ? 'bg-slate-900/40 border-slate-800 text-slate-600 cursor-not-allowed'
-                  : 'bg-slate-900 border-slate-700 text-slate-300 hover:bg-slate-800'
-              }`}
-            >
-              <span>Next</span>
-              <ChevronRight className="w-3.5 h-3.5" />
-            </button>
+              {/* Page numbers */}
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNum) => (
+                <button
+                  key={pageNum}
+                  type="button"
+                  onClick={() => setCurrentPage(pageNum)}
+                  className={`w-8 h-8 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                    currentPage === pageNum
+                      ? 'bg-cyan-950 text-cyan-300 border border-cyan-500/50 shadow-sm font-bold'
+                      : 'bg-slate-900/60 text-slate-400 hover:text-slate-200 border border-slate-800'
+                  }`}
+                >
+                  {pageNum}
+                </button>
+              ))}
+
+              {/* Next */}
+              <button
+                type="button"
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                className={`px-3 py-1.5 rounded-lg border text-xs flex items-center gap-1 transition-colors cursor-pointer ${
+                  currentPage === totalPages
+                    ? 'bg-slate-900/40 border-slate-800 text-slate-600 cursor-not-allowed'
+                    : 'bg-slate-900 border-slate-700 text-slate-300 hover:bg-slate-800'
+                }`}
+              >
+                <span>Next</span>
+                <ChevronRight className="w-3.5 h-3.5" />
+              </button>
+
+            </div>
 
           </div>
-
-        </div>
+        )}
 
       </div>
 

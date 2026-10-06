@@ -48,6 +48,143 @@ export interface IncidentSummaryResponse {
   feedback?: string;
 }
 
+export interface IncidentDetailResponse extends IncidentSummaryResponse {
+  who_trusted: boolean;
+  what_communicated?: string;
+  requested_action?: string;
+  overall_trust: string;
+  signal_breakdown?: Record<string, number>;
+  evidence: string[];
+  recommended_actions: string[];
+  notes?: string;
+}
+
+export function mapBackendIncidentToAnalysisRecord(incident: IncidentDetailResponse): AnalysisRecord {
+  const modalityUpper = (incident.modality || '').toUpperCase();
+  let modality: ModalityType = 'call';
+  if (modalityUpper === 'AUDIO') modality = 'voice';
+  else if (modalityUpper === 'TEXT') modality = 'message';
+  else if (modalityUpper === 'IMAGE' || modalityUpper === 'VIDEO') modality = 'media';
+  else if (modalityUpper === 'URL') modality = 'url';
+  else if (modalityUpper === 'MULTIMODAL') {
+    const sum = (incident.input_summary || '').toLowerCase();
+    if (sum.includes('video') || sum.includes('image')) modality = 'media';
+    else if (sum.includes('audio') || sum.includes('voice')) modality = 'voice';
+    else if (sum.includes('link') || sum.includes('url')) modality = 'url';
+    else if (sum.includes('sms') || sum.includes('message')) modality = 'message';
+    else modality = 'call';
+  }
+
+  const score = Math.round(incident.risk_score);
+  let action: ActionType = 'Safe';
+  let risk: RiskLevel = incident.risk_level;
+
+  if (incident.feedback === 'CONFIRMED_SCAM') {
+    action = 'Rejected';
+    risk = 'CRITICAL';
+  } else if (incident.feedback === 'CONFIRMED_SAFE' || incident.feedback === 'FALSE_ALARM') {
+    action = 'Verified';
+    risk = 'LOW';
+  } else if (incident.feedback === 'USER_ACTION') {
+    action = 'Verified';
+  } else if (incident.feedback === 'BLOCKED') {
+    action = 'Blocked';
+    risk = 'CRITICAL';
+  } else if (incident.feedback === 'QUARANTINED') {
+    action = 'Quarantined';
+    risk = 'CRITICAL';
+  } else {
+    if (incident.risk_level === 'CRITICAL') action = 'Block';
+    else if (incident.risk_level === 'HIGH') action = 'Verify';
+    else if (incident.risk_level === 'MEDIUM') action = 'Review';
+    else action = 'Safe';
+  }
+
+  const rawCreated = (incident.created_at || '').replace(' ', 'T');
+  const isoString = rawCreated.endsWith('Z') || rawCreated.includes('+') ? rawCreated : rawCreated + 'Z';
+  const parsedTime = new Date(isoString).getTime();
+  const validTimestamp = !isNaN(parsedTime) ? parsedTime : Date.now();
+  const dateObj = new Date(validTimestamp);
+  const now = new Date();
+  const diffMinutes = Math.max(0, Math.floor((now.getTime() - dateObj.getTime()) / (1000 * 60)));
+  let timeStr = 'Just now';
+  if (diffMinutes > 1440) {
+    timeStr = dateObj.toLocaleDateString([], { month: 'short', day: 'numeric' });
+  } else if (diffMinutes > 60) {
+    timeStr = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  } else if (diffMinutes >= 1) {
+    timeStr = `${diffMinutes}m ago`;
+  }
+
+  let subject = incident.input_summary || `${modality.toUpperCase()} Forensics Scan`;
+  if (subject.length > 60) {
+    subject = subject.slice(0, 57) + '...';
+  }
+  if (incident.input_summary?.startsWith('File: ')) {
+    const fileNameMatch = incident.input_summary.match(/File:\s*([^,]+)/);
+    if (fileNameMatch) {
+      subject = `Media Forensics: ${fileNameMatch[1].trim()}`;
+    }
+  } else if (incident.input_summary?.startsWith('Transcript: ')) {
+    subject = `Voice Analysis: ${incident.sender_info || '+91 Telemetry'}`;
+  }
+
+  const flags = Array.isArray(incident.flags) ? incident.flags : [];
+  const evidence = Array.isArray(incident.evidence) ? incident.evidence : [];
+
+  let verdict: 'REAL' | 'AI_GENERATED' | 'MANIPULATED' | 'UNCERTAIN' | 'SUSPICIOUS' | 'SAFE' | 'SPAM' | 'MALICIOUS' | 'UNKNOWN' = 'SAFE';
+  if (risk === 'CRITICAL' || risk === 'HIGH') {
+    verdict = modality === 'media' ? 'AI_GENERATED' : modality === 'url' ? 'MALICIOUS' : 'SUSPICIOUS';
+  } else if (risk === 'MEDIUM') {
+    verdict = 'UNCERTAIN';
+  } else {
+    verdict = modality === 'url' ? 'SAFE' : 'REAL';
+  }
+
+  const forensicDetails = {
+    verdict,
+    confidence: Math.min(0.99, Math.max(0.65, score / 100)),
+    threatLevel: risk,
+    manipulationType: flags[0] || (risk === 'LOW' ? 'Authentic' : 'Suspicious Indicator'),
+    evidence: evidence.length > 0 ? evidence : [incident.what_communicated || 'Evaluated by multimodal model.'],
+    recommendedAction: incident.recommended_actions?.[0] || 'Verify independently.'
+  };
+
+  return {
+    id: incident.id,
+    time: timeStr,
+    timestamp: dateObj.getTime() || Date.now(),
+    type: modality,
+    subject: subject,
+    risk: risk,
+    score: score,
+    action: action,
+    forensicDetails: forensicDetails,
+    identityDetails: {
+      callerOrSender: incident.sender_info || 'Unknown Origin',
+      verifiedIdentity: incident.who_trusted ? (incident.sender_info || null) : null,
+      identityTrustScore: Math.round(100 - (incident.signal_breakdown?.identity_score || 0)),
+      spoofingIndicators: flags.filter((f: string) => f.includes('SPOOF') || f.includes('CARRIER') || f.includes('ROUTING') || f.includes('IMPERSONATION')),
+      isKnownContact: !!incident.who_trusted,
+      stirShakenStatus: modality === 'call' ? (incident.who_trusted ? 'PASSED' : 'FAILED') : undefined
+    },
+    communicationDetails: {
+      medium: `${modalityUpper} Forensic Stream`,
+      syntheticProbability: Math.round(incident.signal_breakdown?.media_synthetic_score ?? (score > 60 ? score : 5)),
+      linguisticUrgency: (incident.signal_breakdown?.intent_pressure_score || 0) >= 70 ? 'Extreme Pressure' : 'Normal',
+      coercionTactics: evidence,
+      syntheticMarkers: flags.filter((f: string) => f.includes('SYNTHETIC') || f.includes('ARTIFACT') || f.includes('VOICE'))
+    },
+    requestedActionDetails: {
+      actionType: incident.requested_action || 'Inspect Interaction',
+      sensitivityLevel: risk === 'CRITICAL' ? 'Critical' : risk === 'HIGH' ? 'High' : risk === 'MEDIUM' ? 'Moderate' : 'Low',
+      financialRiskUsd: score >= 80 ? 25000 : 0,
+      destinationRisk: score >= 80 ? 'High-Risk Account' : 'Legitimate'
+    },
+    veritySummary: evidence.slice(0, 2).join(' ') || incident.what_communicated || incident.input_summary || 'Evaluated interaction.'
+  };
+}
+
 export interface DashboardStatsResponse {
   total_scans: number;
   critical_count: number;
@@ -295,7 +432,7 @@ export const apiService = {
   /**
    * Fetch recent incidents from SQLite
    */
-  async fetchIncidents(limit = 20, offset = 0): Promise<IncidentSummaryResponse[]> {
+  async fetchIncidents(limit = 50, offset = 0): Promise<IncidentDetailResponse[]> {
     const res = await fetch(`${API_BASE}/incidents?limit=${limit}&offset=${offset}`, {
       method: 'GET',
     });

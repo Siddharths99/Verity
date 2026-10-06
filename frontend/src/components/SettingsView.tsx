@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { UserProfile, ThemeMode } from '../types/user';
 import { 
   Shield, 
@@ -21,10 +21,24 @@ import {
   Users,
   Flag,
   ShieldCheck,
-  AlertTriangle
+  AlertTriangle,
+  Volume2,
+  Trash2,
+  Plus,
+  Download,
+  Send,
+  Check
 } from 'lucide-react';
 import { lookupCarrierDetails } from '../utils/telecomLookup';
 import avatarImg from '../assets/images/avatar_security_analyst_1791195961743.jpg';
+import { 
+  getUserSettings, 
+  saveUserSettings, 
+  UserSettings, 
+  DEFAULT_USER_SETTINGS,
+  addBlacklistedNumber,
+  removeBlacklistedNumber
+} from '../utils/userSettings';
 
 interface SettingsViewProps {
   user: UserProfile;
@@ -45,23 +59,79 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   onOpenVerifyOtp = () => {},
   onSaveSettings
 }) => {
-  const [attestationLevel, setAttestationLevel] = useState<string>('level-a');
-  const [autoBlockThreshold, setAutoBlockThreshold] = useState<number>(85);
-  const [vocoderSensitivity, setVocoderSensitivity] = useState<string>('strict');
-  const [nlpUrgencyFilter, setNlpUrgencyFilter] = useState<boolean>(true);
-  const [quarantineMfaDemands, setQuarantineMfaDemands] = useState<boolean>(true);
-  const [familyScamAlerts, setFamilyScamAlerts] = useState<boolean>(true);
-  const [cyberCrimeHelplineReport, setCyberCrimeHelplineReport] = useState<boolean>(true);
+  // Load persistent user settings from localStorage
+  const [settings, setSettings] = useState<UserSettings>(() => getUserSettings());
   const [isSaved, setIsSaved] = useState<boolean>(false);
+  const [testAlertNotice, setTestAlertNotice] = useState<string | null>(null);
+  const [familyPingNotice, setFamilyPingNotice] = useState<string | null>(null);
+  const [newBlacklistInput, setNewBlacklistInput] = useState<string>('');
 
   // Auto-detect network provider / SIM details based on the user's phone number
   const carrierInfo = lookupCarrierDetails(user.phoneNumber);
   const isFullyVerified = user.isPhoneVerified && user.isEmailVerified;
 
+  const handleUpdate = <K extends keyof UserSettings>(key: K, value: UserSettings[K]) => {
+    setSettings((prev) => {
+      const next = { ...prev, [key]: value };
+      saveUserSettings(next);
+      return next;
+    });
+  };
+
   const handleSave = () => {
+    saveUserSettings(settings);
     setIsSaved(true);
     onSaveSettings();
     setTimeout(() => setIsSaved(false), 3000);
+  };
+
+  const handleResetDefaults = () => {
+    setSettings(DEFAULT_USER_SETTINGS);
+    saveUserSettings(DEFAULT_USER_SETTINGS);
+    setIsSaved(true);
+    setTestAlertNotice('All security defense thresholds reset to recommended defaults.');
+    setTimeout(() => {
+      setIsSaved(false);
+      setTestAlertNotice(null);
+    }, 3500);
+  };
+
+  const handleAddBlacklist = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newBlacklistInput.trim()) return;
+    const updated = addBlacklistedNumber(newBlacklistInput.trim());
+    setSettings(updated);
+    setNewBlacklistInput('');
+  };
+
+  const handleRemoveBlacklist = (item: string) => {
+    const updated = removeBlacklistedNumber(item);
+    setSettings(updated);
+  };
+
+  const handleTestScamAlarm = () => {
+    setTestAlertNotice('🚨 [VERITY SIREN SIMULATED] Immediate High-Urgency Voice Impersonation Warning Dispatched!');
+    setTimeout(() => setTestAlertNotice(null), 4000);
+  };
+
+  const handleTestFamilyPing = () => {
+    if (!settings.familyPhone.trim()) {
+      setFamilyPingNotice('Please enter a valid family emergency phone number first.');
+      setTimeout(() => setFamilyPingNotice(null), 3000);
+      return;
+    }
+    setFamilyPingNotice(`✅ Verification ping dispatched to ${settings.familyPhone} via secure carrier gateway.`);
+    setTimeout(() => setFamilyPingNotice(null), 4000);
+  };
+
+  const handleExportConfig = () => {
+    const blob = new Blob([JSON.stringify(settings, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `verity-security-profile-${Date.now()}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   const themes: { id: ThemeMode; label: string; dot: string; description: string }[] = [
@@ -75,28 +145,64 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       {/* Header — 100% Free Citizen & Family Shield */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800/80 pb-5">
         <div>
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2.5 flex-wrap">
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white flex items-center gap-2.5">
               <span>Protection & Safety Settings</span>
             </h1>
             <span className="text-xs font-mono px-2.5 py-0.5 rounded-full bg-emerald-950/80 text-emerald-300 border border-emerald-500/40 font-bold">
-              100% Free For Everyone & Families
+              Active Defense Configured
             </span>
           </div>
           <p className="text-xs sm:text-sm text-slate-400 mt-1">
-            Customize how strictly VERITY blocks phone scams, fake cloned voices, fraudulent messages, and suspicious links.
+            Configure real-time carrier blocking, synthetic vocoder sensitivity, emergency family alerts, and blacklist rules.
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={handleSave}
-          className="px-5 py-2.5 rounded-xl text-xs font-bold text-slate-950 bg-cyan-400 hover:bg-cyan-300 transition-all flex items-center gap-2 shadow-[0_0_15px_rgba(6,182,212,0.3)] cursor-pointer self-start sm:self-auto"
-        >
-          {isSaved ? <CheckCircle2 className="w-4 h-4 text-slate-950" /> : <Save className="w-4 h-4 text-slate-950" />}
-          <span>{isSaved ? 'Settings Saved' : 'Save Preferences'}</span>
-        </button>
+        <div className="flex items-center gap-2.5 flex-wrap">
+          <button
+            type="button"
+            onClick={handleResetDefaults}
+            title="Reset to recommended defense settings"
+            className="px-3 py-2 rounded-xl text-xs font-semibold text-slate-300 hover:text-white bg-slate-900 hover:bg-slate-800 border border-slate-700 transition-colors flex items-center gap-1.5 cursor-pointer"
+          >
+            <RefreshCw className="w-3.5 h-3.5 text-cyan-400" />
+            <span>Reset Defaults</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={handleExportConfig}
+            title="Export config JSON"
+            className="px-3 py-2 rounded-xl text-xs font-semibold text-slate-300 hover:text-white bg-slate-900 hover:bg-slate-800 border border-slate-700 transition-colors flex items-center gap-1.5 cursor-pointer"
+          >
+            <Download className="w-3.5 h-3.5 text-slate-400" />
+            <span>Export JSON</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={handleSave}
+            className="px-5 py-2.5 rounded-xl text-xs font-bold text-slate-950 bg-cyan-400 hover:bg-cyan-300 transition-all flex items-center gap-2 shadow-[0_0_15px_rgba(6,182,212,0.3)] cursor-pointer"
+          >
+            {isSaved ? <CheckCircle2 className="w-4 h-4 text-slate-950" /> : <Save className="w-4 h-4 text-slate-950" />}
+            <span>{isSaved ? 'Settings Saved' : 'Save Preferences'}</span>
+          </button>
+        </div>
       </div>
+
+      {/* Live Notice Banners */}
+      {testAlertNotice && (
+        <div className="p-3.5 rounded-xl bg-red-950/70 border border-red-500/50 text-red-200 text-xs font-mono flex items-center justify-between gap-3 animate-fadeIn">
+          <span>{testAlertNotice}</span>
+          <button onClick={() => setTestAlertNotice(null)} className="text-red-400 hover:text-white">✕</button>
+        </div>
+      )}
+      {familyPingNotice && (
+        <div className="p-3.5 rounded-xl bg-emerald-950/70 border border-emerald-500/50 text-emerald-200 text-xs font-mono flex items-center justify-between gap-3 animate-fadeIn">
+          <span>{familyPingNotice}</span>
+          <button onClick={() => setFamilyPingNotice(null)} className="text-emerald-400 hover:text-white">✕</button>
+        </div>
+      )}
 
       {/* USER VERIFICATION & TELECOM SIM PROVIDER STATUS CARD */}
       <div className="p-5 sm:p-6 rounded-2xl bg-gradient-to-r from-slate-900 via-slate-900/90 to-blue-950/30 border border-slate-800 shadow-md">
@@ -206,11 +312,16 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           
           {/* Section 1: Phone Line & Caller ID Protection */}
           <div className="p-5 sm:p-6 rounded-2xl bg-slate-900/80 border border-slate-800 shadow-md backdrop-blur-sm space-y-4">
-            <div className="flex items-center gap-2 border-b border-slate-800 pb-3">
-              <Phone className="w-4 h-4 text-cyan-400" />
-              <h3 className="text-sm font-bold text-white uppercase tracking-wider font-mono">
-                1. Caller ID & SIM Protection
-              </h3>
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div className="flex items-center gap-2">
+                <Phone className="w-4 h-4 text-cyan-400" />
+                <h3 className="text-sm font-bold text-white uppercase tracking-wider font-mono">
+                  1. Caller ID & SIM Protection
+                </h3>
+              </div>
+              <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-cyan-950 text-cyan-300 border border-cyan-500/30">
+                STIR/SHAKEN Active
+              </span>
             </div>
 
             <div className="space-y-4 text-xs">
@@ -219,16 +330,18 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   Fake Caller ID & Number Spoofing Shield
                 </label>
                 <select
-                  value={attestationLevel}
-                  onChange={(e) => setAttestationLevel(e.target.value)}
+                  value={settings.attestationLevel}
+                  onChange={(e) => handleUpdate('attestationLevel', e.target.value as any)}
                   className="w-full px-3.5 py-2.5 rounded-lg bg-slate-950/80 border border-slate-800 text-slate-200 focus:outline-none focus:border-cyan-500 font-mono cursor-pointer"
                 >
-                  <option value="level-a">Strict Protection — Block all spoofed and unverified fake callers</option>
-                  <option value="level-b">Normal Protection — Warn when an incoming call appears suspicious</option>
-                  <option value="level-c">Permissive — Ring normally for all calls</option>
+                  <option value="level-a">Strict Protection — Block all spoofed and unverified fake callers (Level A)</option>
+                  <option value="level-b">Normal Protection — Warn when an incoming call appears suspicious (Level B)</option>
+                  <option value="level-c">Permissive — Ring normally for all calls (Level C)</option>
                 </select>
-                <span className="text-[11px] text-slate-400 block">
-                  Checks incoming calls against carrier records to make sure scammers aren't faking police, government, or bank phone numbers.
+                <span className="text-[11px] text-slate-400 block leading-relaxed">
+                  {settings.attestationLevel === 'level-a' && 'Active Mode: Unsigned VoIP gateway calls impersonating government, banks, or emergency contacts are dropped immediately.'}
+                  {settings.attestationLevel === 'level-b' && 'Active Mode: Inbound calls without verified carrier signatures will display an on-screen warning alert.'}
+                  {settings.attestationLevel === 'level-c' && 'Active Mode: Permissive gateway bypass; all calls ring with standard caller ID.'}
                 </span>
               </div>
 
@@ -236,15 +349,15 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               <div className="space-y-1.5 pt-2">
                 <div className="flex items-center justify-between font-mono">
                   <span className="text-slate-200 font-medium">Auto-Block Scam Risk Threshold</span>
-                  <span className="text-red-400 font-bold">{autoBlockThreshold}% Risk</span>
+                  <span className="text-red-400 font-bold">{settings.autoBlockThreshold}% Risk</span>
                 </div>
                 <input
                   type="range"
                   min={50}
                   max={95}
                   step={5}
-                  value={autoBlockThreshold}
-                  onChange={(e) => setAutoBlockThreshold(Number(e.target.value))}
+                  value={settings.autoBlockThreshold}
+                  onChange={(e) => handleUpdate('autoBlockThreshold', Number(e.target.value))}
                   className="w-full accent-cyan-400 cursor-pointer h-2 bg-slate-950 rounded-lg"
                 />
                 <div className="flex justify-between text-[10px] font-mono text-slate-500">
@@ -252,8 +365,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   <span>85% (Recommended for Families)</span>
                   <span>95% (Only Definite Scams)</span>
                 </div>
-                <span className="text-[11px] text-slate-400 block pt-1">
-                  Calls or messages evaluated with a scam score at or above {autoBlockThreshold}% will be blocked immediately to protect you and your family.
+                <span className="text-[11px] text-slate-400 block pt-1 leading-relaxed">
+                  Incoming communications evaluated with a composite risk score at or above <strong className="text-cyan-300 font-mono">{settings.autoBlockThreshold}%</strong> are automatically blocked before reaching your device.
                 </span>
               </div>
             </div>
@@ -261,22 +374,32 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
           {/* Section 2: Scam & Fake Voice Detection Sensitivity */}
           <div className="p-5 sm:p-6 rounded-2xl bg-slate-900/80 border border-slate-800 shadow-md backdrop-blur-sm space-y-4">
-            <div className="flex items-center gap-2 border-b border-slate-800 pb-3">
-              <Cpu className="w-4 h-4 text-purple-400" />
-              <h3 className="text-sm font-bold text-white uppercase tracking-wider font-mono">
-                2. Scam & Fake Voice Detection Sensitivity
-              </h3>
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div className="flex items-center gap-2">
+                <Cpu className="w-4 h-4 text-purple-400" />
+                <h3 className="text-sm font-bold text-white uppercase tracking-wider font-mono">
+                  2. Scam & Fake Voice Detection Sensitivity
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={handleTestScamAlarm}
+                className="text-[10px] font-mono text-cyan-400 hover:text-cyan-300 px-2 py-0.5 rounded bg-cyan-950/60 border border-cyan-500/30 flex items-center gap-1 cursor-pointer"
+              >
+                <Volume2 className="w-3 h-3" />
+                <span>Simulate Scam Alarm</span>
+              </button>
             </div>
 
             <div className="space-y-3.5 text-xs">
               <div className="flex items-center justify-between p-3 rounded-xl bg-slate-950/60 border border-slate-800">
                 <div>
                   <span className="font-semibold text-slate-200 block">AI Cloned Voice Detection</span>
-                  <span className="text-[11px] text-slate-400">Detects computer-generated voices, robotic pitch jitter, and voice deepfakes</span>
+                  <span className="text-[11px] text-slate-400">Tuning: Neural vocoder formant jitter, pitch micro-cadence & phase discontinuities</span>
                 </div>
                 <select
-                  value={vocoderSensitivity}
-                  onChange={(e) => setVocoderSensitivity(e.target.value)}
+                  value={settings.vocoderSensitivity}
+                  onChange={(e) => handleUpdate('vocoderSensitivity', e.target.value as any)}
                   className="px-3 py-1.5 rounded-md bg-slate-900 border border-slate-700 text-slate-200 font-mono cursor-pointer"
                 >
                   <option value="strict">Strict (High sensitivity)</option>
@@ -288,12 +411,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               <div className="flex items-center justify-between p-3 rounded-xl bg-slate-950/60 border border-slate-800">
                 <div>
                   <span className="font-semibold text-slate-200 block">Panic & High-Pressure Scam Alarm</span>
-                  <span className="text-[11px] text-slate-400">Warns immediately when callers threaten "Digital Arrest", "Police Warrant", or "Account Blocked"</span>
+                  <span className="text-[11px] text-slate-400">Warns immediately when callers threaten "Digital Arrest", "Police Warrant", or "Account Freeze"</span>
                 </div>
                 <input
                   type="checkbox"
-                  checked={nlpUrgencyFilter}
-                  onChange={(e) => setNlpUrgencyFilter(e.target.checked)}
+                  checked={settings.nlpUrgencyFilter}
+                  onChange={(e) => handleUpdate('nlpUrgencyFilter', e.target.checked)}
                   className="w-4 h-4 accent-cyan-400 cursor-pointer"
                 />
               </div>
@@ -301,14 +424,91 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               <div className="flex items-center justify-between p-3 rounded-xl bg-slate-950/60 border border-slate-800">
                 <div>
                   <span className="font-semibold text-slate-200 block">Block Passcode & OTP Demands</span>
-                  <span className="text-[11px] text-slate-400">Never allow callers or messages to trick you into disclosing one-time passwords</span>
+                  <span className="text-[11px] text-slate-400">Automatically isolate callers demanding one-time passwords, UPI PINs, or CVVs</span>
                 </div>
                 <input
                   type="checkbox"
-                  checked={quarantineMfaDemands}
-                  onChange={(e) => setQuarantineMfaDemands(e.target.checked)}
+                  checked={settings.quarantineMfaDemands}
+                  onChange={(e) => handleUpdate('quarantineMfaDemands', e.target.checked)}
                   className="w-4 h-4 accent-cyan-400 cursor-pointer"
                 />
+              </div>
+
+              <div className="flex items-center justify-between p-3 rounded-xl bg-slate-950/60 border border-slate-800">
+                <div>
+                  <span className="font-semibold text-slate-200 block">Audio & Siren Alarm Notifications</span>
+                  <span className="text-[11px] text-slate-400">Play distinctive audible warning sound when critical deepfake threats are intercepted</span>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={settings.soundAlerts}
+                  onChange={(e) => handleUpdate('soundAlerts', e.target.checked)}
+                  className="w-4 h-4 accent-cyan-400 cursor-pointer"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Section 3: Carrier & SIM Blacklist Manager (Live Interactive Registry) */}
+          <div className="p-5 sm:p-6 rounded-2xl bg-slate-900/80 border border-slate-800 shadow-md backdrop-blur-sm space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div className="flex items-center gap-2">
+                <Shield className="w-4 h-4 text-red-400" />
+                <h3 className="text-sm font-bold text-white uppercase tracking-wider font-mono">
+                  3. Carrier & Device Blacklist Registry
+                </h3>
+              </div>
+              <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-red-950 text-red-300 border border-red-500/30 font-bold">
+                {settings.blacklistedNumbers.length} Blocked
+              </span>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <p className="text-[11px] text-slate-400 leading-relaxed font-sans">
+                These numbers and domains are blocked at the SIM gateway level and immediately dropped before ringing.
+              </p>
+
+              {/* Add Number Input */}
+              <form onSubmit={handleAddBlacklist} className="flex gap-2">
+                <input
+                  type="text"
+                  value={newBlacklistInput}
+                  onChange={(e) => setNewBlacklistInput(e.target.value)}
+                  placeholder="Enter phone number or domain to block..."
+                  className="flex-1 px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-slate-200 font-mono text-xs focus:outline-none focus:border-red-500"
+                />
+                <button
+                  type="submit"
+                  disabled={!newBlacklistInput.trim()}
+                  className="px-3.5 py-2 rounded-xl bg-red-600 hover:bg-red-500 disabled:opacity-40 text-white font-bold text-xs flex items-center gap-1.5 transition-colors cursor-pointer"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Block</span>
+                </button>
+              </form>
+
+              {/* Blacklisted Numbers List */}
+              <div className="max-h-36 overflow-y-auto space-y-1 bg-slate-950/70 p-2.5 rounded-xl border border-slate-800">
+                {settings.blacklistedNumbers.length === 0 ? (
+                  <p className="text-[11px] text-slate-500 text-center py-2">No numbers currently blacklisted</p>
+                ) : (
+                  settings.blacklistedNumbers.map((num) => (
+                    <div 
+                      key={num}
+                      className="flex items-center justify-between p-1.5 px-2 rounded-lg bg-slate-900 border border-slate-800/80 text-slate-300 font-mono text-xs"
+                    >
+                      <span className="truncate max-w-[320px]">{num}</span>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveBlacklist(num)}
+                        title="Unblock number"
+                        className="text-red-400 hover:text-red-300 p-1 cursor-pointer transition-colors"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
           </div>
@@ -318,47 +518,74 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         {/* Right Column (5 cols): Safety Alerts, Phone Line & Themes */}
         <div className="lg:col-span-5 space-y-6">
           
-          {/* Section 3: Safety Alerts & Connected Services (Replacing SECOPS & Integrations) */}
+          {/* Section 4: Safety Alerts & Connected Services */}
           <div className="p-5 sm:p-6 rounded-2xl bg-slate-900/80 border border-slate-800 shadow-md backdrop-blur-sm space-y-4">
             <div className="flex items-center gap-2 border-b border-slate-800 pb-3">
               <Users className="w-4 h-4 text-amber-400" />
               <h3 className="text-sm font-bold text-white uppercase tracking-wider font-mono">
-                3. Safety Alerts & Connected Services
+                4. Emergency Family Alerts
               </h3>
             </div>
 
-            <div className="space-y-3 text-xs">
+            <div className="space-y-3.5 text-xs">
               {/* Option 1: Family Warning */}
-              <div className="flex items-center justify-between p-3 rounded-xl bg-slate-950/60 border border-slate-800">
-                <div>
-                  <span className="font-semibold text-slate-200 block">Family Scam Warning Alerts</span>
-                  <span className="text-[11px] text-slate-400">Send instant WhatsApp or SMS alerts to family if a dangerous scam is detected</span>
+              <div className="space-y-2 p-3 rounded-xl bg-slate-950/60 border border-slate-800">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="font-semibold text-slate-200 block">Family Scam Warning Alerts</span>
+                    <span className="text-[11px] text-slate-400">Instant SMS/WhatsApp alerts if a scammer targets you or your family</span>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={settings.familyScamAlerts}
+                    onChange={(e) => handleUpdate('familyScamAlerts', e.target.checked)}
+                    className="w-4 h-4 accent-cyan-400 cursor-pointer"
+                  />
                 </div>
-                <input
-                  type="checkbox"
-                  checked={familyScamAlerts}
-                  onChange={(e) => setFamilyScamAlerts(e.target.checked)}
-                  className="w-4 h-4 accent-cyan-400 cursor-pointer"
-                />
+
+                {settings.familyScamAlerts && (
+                  <div className="pt-2 border-t border-slate-800/60 space-y-1.5">
+                    <label className="text-[10px] font-mono text-slate-400 block uppercase">
+                      Family Emergency Contact Number:
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        type="tel"
+                        value={settings.familyPhone}
+                        onChange={(e) => handleUpdate('familyPhone', e.target.value)}
+                        placeholder="+91 98765 43210"
+                        className="flex-1 px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-cyan-300 font-mono text-xs focus:outline-none focus:border-cyan-500"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleTestFamilyPing}
+                        className="px-2.5 py-1.5 rounded-lg bg-cyan-950 border border-cyan-500/40 text-cyan-300 hover:bg-cyan-900 text-[11px] font-mono font-bold flex items-center gap-1 cursor-pointer"
+                      >
+                        <Send className="w-3 h-3" />
+                        <span>Test</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Option 2: National Cybercrime Helpline 1930 */}
               <div className="flex items-center justify-between p-3 rounded-xl bg-slate-950/60 border border-slate-800">
                 <div>
-                  <span className="font-semibold text-slate-200 block">Report Scams to Cyber Crime Helpline (1930)</span>
-                  <span className="text-[11px] text-slate-400">Automatically submit evidence of confirmed scams to the National Cybercrime Portal</span>
+                  <span className="font-semibold text-slate-200 block">Report Scams to Cyber Crime (1930)</span>
+                  <span className="text-[11px] text-slate-400">Compile formal evidence packets for the National Cybercrime Portal</span>
                 </div>
                 <input
                   type="checkbox"
-                  checked={cyberCrimeHelplineReport}
-                  onChange={(e) => setCyberCrimeHelplineReport(e.target.checked)}
+                  checked={settings.cyberCrimeHelplineReport}
+                  onChange={(e) => handleUpdate('cyberCrimeHelplineReport', e.target.checked)}
                   className="w-4 h-4 accent-cyan-400 cursor-pointer"
                 />
               </div>
             </div>
           </div>
 
-          {/* Section 4: Phone Line & Account Protection */}
+          {/* Section 5: Phone Line & Account Protection */}
           <div className="p-5 sm:p-6 rounded-2xl bg-slate-900/80 border border-slate-800 shadow-md backdrop-blur-sm space-y-4">
             <div className="flex items-center gap-2 border-b border-slate-800 pb-3">
               <Lock className="w-4 h-4 text-cyan-400" />
@@ -384,27 +611,27 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                   onClick={onOpenChangeNumber}
                   className="text-xs text-cyan-400 hover:underline font-semibold cursor-pointer"
                 >
-                  Verify SIM & Caller ID Protection
+                  Verify SIM Line
                 </button>
               </div>
 
               <div className="p-3 rounded-lg bg-slate-950/60 border border-slate-800 flex items-center justify-between">
                 <div>
                   <span className="text-slate-400 text-[11px] block">Account Password</span>
-                  <span className="text-slate-200 font-medium">••••••••••••••</span>
+                  <span className="text-slate-200 font-medium font-mono">••••••••••••••</span>
                 </div>
                 <button
                   type="button"
                   onClick={onOpenChangePassword}
                   className="text-xs text-cyan-400 hover:underline font-semibold cursor-pointer"
                 >
-                  Change
+                  Change Password
                 </button>
               </div>
             </div>
           </div>
 
-          {/* Section 5: Theme Appearance */}
+          {/* Section 6: Theme Appearance */}
           <div className="p-5 sm:p-6 rounded-2xl bg-slate-900/80 border border-slate-800 shadow-md backdrop-blur-sm space-y-4">
             <div className="flex items-center justify-between border-b border-slate-800 pb-3">
               <div className="flex items-center gap-2">
