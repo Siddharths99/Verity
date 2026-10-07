@@ -97,8 +97,9 @@ const API_BASE = RAW_API_BASE.replace(/\/+$/, '') + '/api/v1';
 
 function getWsUrl(sessionId: string): string {
   const base = RAW_API_BASE.replace(/\/+$/, '');
-  const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
   const urlObj = new URL(base, window.location.href);
+  const isSecure = urlObj.protocol === 'https:' || (typeof window !== 'undefined' && window.location.protocol === 'https:');
+  const wsProtocol = isSecure ? 'wss:' : 'ws:';
   return `${wsProtocol}//${urlObj.host}/api/v1/call-protection/session/${encodeURIComponent(sessionId)}/ws`;
 }
 

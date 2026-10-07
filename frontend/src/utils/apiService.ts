@@ -1,8 +1,8 @@
 import { AnalysisRecord, ModalityType, RiskLevel, ActionType } from '../types';
 
 // Use env var for the API base URL — configure VITE_API_BASE_URL in .env for each environment.
-// Falls back to localhost:8000 for local development.
-const API_BASE = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000') + '/api/v1';
+const RAW_API_BASE = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000').replace(/\/+$/, '');
+const API_BASE = RAW_API_BASE + '/api/v1';
 
 export interface VerityEvaluation {
   who_trusted: boolean;
