@@ -31,7 +31,10 @@ import { AnalysisRecord, ModalityType } from './types';
 import { ThemeMode, UserProfile, INITIAL_USER_PROFILE } from './types/user';
 import { exportAuditLogToPdf } from './utils/pdfExport';
 import { apiService, mapBackendIncidentToAnalysisRecord } from './utils/apiService';
-import { Smartphone, Monitor, CheckCircle2, AlertTriangle, Info, X } from 'lucide-react';
+import { CallPermissionModal } from './components/CallPermissionModal';
+import { IncomingCallBanner } from './components/IncomingCallBanner';
+import { callDetectionService, IncomingCallPayload } from './utils/callDetectionService';
+import { Smartphone, Monitor, CheckCircle2, AlertTriangle, Info, X, PhoneCall } from 'lucide-react';
 
 const STORAGE_KEY = 'verity_analysis_records_v3';
 
@@ -90,6 +93,40 @@ export default function App() {
   const [mobileSubView, setMobileSubView] = useState<'dashboard' | 'new-analysis' | 'history' | 'result' | 'call-protection' | 'settings'>('dashboard');
   const [activeCallNumber, setActiveCallNumber] = useState<string>('+91 98401 24590');
   const [activeCallClaimed, setActiveCallClaimed] = useState<string>('Bank Representative');
+
+  // Telecom & Call Screening Permission Modal state (Must ask user before proceeding into app)
+  const [hasCallPermission, setHasCallPermission] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('verity_call_logs_permission') !== null;
+    }
+    return false;
+  });
+
+  // Real-time Incoming Call Detection State
+  const [incomingCall, setIncomingCall] = useState<IncomingCallPayload | null>(null);
+
+  // Subscribe to real-time incoming call detection: auto-routes to Call Protection
+  useEffect(() => {
+    callDetectionService.startListening();
+    const unsubscribe = callDetectionService.subscribe((call) => {
+      setIncomingCall(call);
+      if (call) {
+        // DIRECT USER IMMEDIATELY TO CALL PROTECTION PAGE
+        setActiveCallNumber(call.phoneNumber);
+        setActiveCallClaimed(call.claimedIdentity);
+        if (isMobileMode) {
+          setMobileSubView('call-protection');
+        } else {
+          setActiveTab('call-protection');
+        }
+        showToast(`🚨 Inbound call detected from ${call.phoneNumber}! Directing to Call Protection...`, 'alert');
+      }
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, [isMobileMode]);
 
   // Modals state
   const [selectedRecord, setSelectedRecord] = useState<AnalysisRecord | null>(null);
@@ -447,6 +484,20 @@ export default function App() {
           <Smartphone className="w-3.5 h-3.5" />
           <span>Mobile UI</span>
         </button>
+
+        {/* Quick Simulator for Inbound Threat Calls */}
+        <button
+          type="button"
+          onClick={() => {
+            const call = callDetectionService.triggerIncomingCall();
+            showToast(`🚨 Inbound call detected: ${call.phoneNumber} (${call.claimedIdentity})`, 'alert');
+          }}
+          className="px-2.5 py-1 rounded-lg flex items-center gap-1.5 transition-all cursor-pointer bg-red-950/70 hover:bg-red-900/70 text-red-300 border border-red-500/50 font-bold active:scale-[0.98] shadow-sm ml-1"
+          title="Simulate incoming threat call to test real-time detection & auto-routing"
+        >
+          <PhoneCall className="w-3.5 h-3.5 text-red-400 animate-pulse" />
+          <span className="hidden sm:inline">Simulate Call</span>
+        </button>
       </div>
 
       {/* Main Workspace Viewport */}
@@ -468,6 +519,12 @@ export default function App() {
                 else if (tab === 'call-protection') setMobileSubView('call-protection');
                 else if (tab === 'settings') setMobileSubView('settings');
                 else setMobileSubView('new-analysis');
+              }}
+              onLaunchCallProtection={(phone, claimed) => {
+                setActiveCallNumber(phone);
+                setActiveCallClaimed(claimed);
+                setMobileSubView('call-protection');
+                showToast(`Live Call Protection Shield active for ${phone}`, 'info');
               }}
               activeMobileTab="analyze"
               hideHeader={true}
@@ -529,9 +586,13 @@ export default function App() {
               isDemoMode={true}
               onEndCall={() => {
                 showToast('Inbound call terminated immediately by user', 'alert');
+                callDetectionService.dismissIncomingCall();
                 setMobileSubView('dashboard');
               }}
-              onBlockCaller={() => handleOpenBlock(selectedRecord || records[0])}
+              onBlockCaller={() => {
+                handleOpenBlock(selectedRecord || records[0]);
+                callDetectionService.dismissIncomingCall();
+              }}
               onReportFraud={() => handleOpenReport(selectedRecord || records[0])}
               onVerifyIndependently={() => handleOpenVerify(selectedRecord || records[0])}
               onBackToDashboard={() => setMobileSubView('dashboard')}
@@ -924,6 +985,45 @@ export default function App() {
           initialModality={activeModality}
           onClose={() => setIsQuickAnalysisOpen(false)}
           onAnalysisComplete={handleAnalysisComplete}
+        />
+      )}
+
+      {/* Real-time Incoming Call Heads-up Intercept Banner */}
+      {incomingCall && (
+        <IncomingCallBanner
+          call={incomingCall}
+          onAcceptAndOpenShield={() => {
+            callDetectionService.answerCall();
+            setActiveCallNumber(incomingCall.phoneNumber);
+            setActiveCallClaimed(incomingCall.claimedIdentity);
+            if (isMobileMode) {
+              setMobileSubView('call-protection');
+            } else {
+              setActiveTab('call-protection');
+            }
+            setIncomingCall(null);
+          }}
+          onDeclineCall={() => {
+            callDetectionService.dismissIncomingCall();
+            setIncomingCall(null);
+            showToast('Incoming call declined by user', 'info');
+          }}
+        />
+      )}
+
+      {/* Telephony & Call Logs Permission Modal (Required before proceeding into application) */}
+      {!hasCallPermission && (
+        <CallPermissionModal
+          onGrantPermission={(mode) => {
+            localStorage.setItem('verity_call_logs_permission', mode);
+            setHasCallPermission(true);
+            showToast(
+              mode === 'full' 
+                ? '✓ Real-Time Call Screening & Log Access Granted' 
+                : '✓ Running in Simulated Call Protection Sandbox',
+              'success'
+            );
+          }}
         />
       )}
 

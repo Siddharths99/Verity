@@ -44,6 +44,7 @@ interface MobileNewAnalysisViewProps {
   onBack: () => void;
   onRunAnalysis: (record: AnalysisRecord) => void;
   onNavigateTab?: (tab: string) => void;
+  onLaunchCallProtection?: (phoneNumber: string, claimedIdentity: string) => void;
   activeMobileTab?: string;
   hideHeader?: boolean;
   hideBottomNav?: boolean;
@@ -54,6 +55,7 @@ export const MobileNewAnalysisView: React.FC<MobileNewAnalysisViewProps> = ({
   onBack,
   onRunAnalysis,
   onNavigateTab = () => {},
+  onLaunchCallProtection,
   activeMobileTab = 'analyze',
   hideHeader = false,
   hideBottomNav = false
@@ -548,6 +550,36 @@ export const MobileNewAnalysisView: React.FC<MobileNewAnalysisViewProps> = ({
                 className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500"
                 placeholder="Unknown Caller"
               />
+            </div>
+
+            {/* Live Call Intercept Trigger */}
+            <div className="p-3 rounded-xl bg-slate-950/90 border border-cyan-500/40 space-y-2 mt-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-white flex items-center gap-1.5">
+                  <Radio className="w-3.5 h-3.5 text-red-400 animate-pulse" />
+                  <span>Live Telecom Intercept</span>
+                </span>
+                <span className="text-[10px] font-mono text-cyan-300 font-bold bg-cyan-950/80 px-2 py-0.5 rounded-full border border-cyan-500/30">
+                  Real-Time Shield
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-300 leading-tight">
+                Simulate or inspect this inbound call live with acoustic speech-to-text, carrier STIR/SHAKEN verification, and 1-tap block.
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  if (onLaunchCallProtection) {
+                    onLaunchCallProtection(callerNumber || '+91 98401 24590', callerName || 'Unknown Caller');
+                  } else if (onNavigateTab) {
+                    onNavigateTab('call-protection');
+                  }
+                }}
+                className="w-full py-2.5 px-3 rounded-lg text-xs font-bold text-slate-950 bg-gradient-to-r from-cyan-400 to-emerald-400 hover:from-cyan-300 hover:to-emerald-300 transition-all flex items-center justify-center gap-1.5 shadow-[0_0_15px_rgba(6,182,212,0.3)] cursor-pointer active:scale-95"
+              >
+                <PhoneCall className="w-3.5 h-3.5" />
+                <span>Launch Live Call Protection Shield →</span>
+              </button>
             </div>
           </div>
         )}

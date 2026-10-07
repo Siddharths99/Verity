@@ -313,6 +313,15 @@ export const CallProtectionView: React.FC<CallProtectionViewProps> = ({
     { id: 'ws-5', text: 'OTP request detected', detail: 'Direct verbal demand for one-time SMS verification token', icon: KeyRound }
   ];
 
+  useEffect(() => {
+    if (initialPhoneNumber) {
+      setCallerNumber(initialPhoneNumber);
+    }
+    if (initialClaimedIdentity) {
+      setClaimedIdentity(initialClaimedIdentity);
+    }
+  }, [initialPhoneNumber, initialClaimedIdentity]);
+
   return (
     <div className={`w-full ${isMobile ? 'max-w-full sm:max-w-md pb-28 sm:pb-32 space-y-3.5' : 'max-w-7xl space-y-5'} mx-auto animate-fadeIn py-1 overflow-x-hidden`}>
       
@@ -408,6 +417,44 @@ export const CallProtectionView: React.FC<CallProtectionViewProps> = ({
           </div>
         </div>
       )}
+
+      {/* QUICK INCOMING CALL SCENARIOS SELECTOR */}
+      <div className="p-2.5 rounded-xl bg-slate-900/90 border border-slate-800 space-y-1.5">
+        <div className="flex items-center justify-between">
+          <span className="text-[10px] font-mono text-cyan-300 font-bold uppercase flex items-center gap-1.5">
+            <Radio className="w-3 h-3 text-red-400 animate-pulse" />
+            <span>Simulate Incoming Call Scenarios:</span>
+          </span>
+          <span className="text-[9px] font-mono text-slate-400">Live Telephony Feed</span>
+        </div>
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5">
+          {[
+            { label: 'CBI Digital Arrest', phone: '+91 98401 24590', claimed: 'CBI Officer Suresh Patel' },
+            { label: 'Bank KYC Threat', phone: '+91 91234 56789', claimed: 'SBI Cards Fraud Cell' },
+            { label: 'AI Voice Clone', phone: '+91 98765 43210', claimed: 'Family Emergency (Voice Clone)' },
+            { label: 'TRAI SIM Cutoff', phone: '+91 80012 34567', claimed: 'TRAI Telecom Inspector' }
+          ].map((sc, i) => (
+            <button
+              key={i}
+              type="button"
+              onClick={() => {
+                setCallerNumber(sc.phone);
+                setClaimedIdentity(sc.claimed);
+                setCallDuration(0);
+                setIsCallActive(true);
+                setActionNotice(`Live call switched to ${sc.phone} (${sc.claimed})`);
+              }}
+              className={`px-2.5 py-1 rounded-lg text-[10px] font-mono font-semibold whitespace-nowrap transition-all cursor-pointer border ${
+                callerNumber === sc.phone
+                  ? 'bg-cyan-950 border-cyan-400 text-cyan-300 shadow-[0_0_10px_rgba(6,182,212,0.3)]'
+                  : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700'
+              }`}
+            >
+              {sc.label}
+            </button>
+          ))}
+        </div>
+      </div>
 
       {/* DEMO / SIMULATION MODE NOTICE (Required by Item 8) */}
       {isDemo && (
