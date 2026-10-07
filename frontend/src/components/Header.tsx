@@ -1,7 +1,6 @@
-import React from 'react';
 import { LogoDropdown } from './LogoDropdown';
 import { ThemeMode, UserProfile } from '../types/user';
-import { Bell, ChevronDown, PhoneCall } from 'lucide-react';
+import { FileDown, ChevronDown, PhoneCall } from 'lucide-react';
 import avatarImg from '../assets/images/avatar_security_analyst_1791195961743.jpg';
 
 interface HeaderProps {
@@ -122,15 +121,15 @@ export const Header: React.FC<HeaderProps> = ({
             </span>
           </button>
 
-          {/* Notifications Icon Button */}
+          {/* Export Security Audit Logs Button */}
           <button 
             type="button"
             onClick={onExportAuditLog}
-            title="Export Security Audit Logs"
-            className="relative hidden sm:flex items-center justify-center w-8 h-8 rounded-lg border border-slate-800 dark:border-slate-800 bg-slate-900/60 dark:bg-slate-900/60 text-slate-400 hover:text-slate-200 hover:border-slate-700 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 transition-all cursor-pointer shrink-0"
+            title="Export Security Audit Logs (PDF)"
+            aria-label="Export Security Audit Logs"
+            className="hidden sm:flex items-center justify-center w-8 h-8 rounded-lg border border-slate-800 dark:border-slate-800 bg-slate-900/60 dark:bg-slate-900/60 text-slate-400 hover:text-cyan-300 hover:border-cyan-500/40 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 transition-all cursor-pointer shrink-0"
           >
-            <Bell className="w-4 h-4" />
-            <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-cyan-400" />
+            <FileDown className="w-4 h-4" />
           </button>
 
           {/* Unified Profile Control: [ Profile Avatar + Chevron ] */}
