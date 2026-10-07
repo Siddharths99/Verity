@@ -293,4 +293,54 @@ def test_copilot_chat_endpoint(client):
     assert isinstance(data.get("suggested_actions"), list)
 
 
+def test_caller_id_verification_verified_official_helpline(client):
+    """
+    Legitimate official helplines (1930 Cybercrime, 1800 1234 SBI) must return VERIFIED.
+    """
+    resp = client.post("/api/v1/call-protection/verify-caller", json={
+        "phone_number": "1930",
+        "demo_mode": False
+    })
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["verification_state"] == "VERIFIED"
+    assert data["claimed_identity_match"] is True
+    assert "Level A" in (data["stir_shaken_attestation"] or "")
+    assert data["reputation_score"] < 10.0
+
+
+def test_caller_id_verification_demo_mode_tagging(client):
+    """
+    Demo mode must clearly label simulated data as is_simulated=True.
+    """
+    resp = client.post("/api/v1/call-protection/verify-caller", json={
+        "phone_number": "+91 98401 24590",
+        "demo_mode": True
+    })
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["is_simulated"] is True
+    assert "DEMO" in data["provider_name"] or "SIMULATED" in data["provider_name"]
+
+
+def test_call_protection_websocket_snapshot(client):
+    """
+    Test WebSocket receives session snapshot immediately upon connection.
+    """
+    start_resp = client.post("/api/v1/call-protection/session/start", json={
+        "phone_number": "+91 98401 24590",
+        "demo_mode": False
+    })
+    sess_id = start_resp.json()["id"]
+
+    with client.websocket_connect(f"/api/v1/call-protection/session/{sess_id}/ws") as websocket:
+        data = websocket.receive_json()
+        assert data["event_type"] == "SESSION_SNAPSHOT"
+        assert data["phone_number"] == "+91 98401 24590"
+        assert data["threat_score"] is not None
+        assert "quadrants" in data
+
+
+
+
 

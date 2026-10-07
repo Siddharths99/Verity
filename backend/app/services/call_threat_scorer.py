@@ -192,15 +192,36 @@ class CallThreatScorer:
             is_urgent = any(kw in text_lower for kw in [
                 "urgent", "immediately", "24 hours", "suspended", "blocked",
                 "arrest", "cbi", "police", "customs", "digital arrest",
-                "court order", "freeze", "lockdown", "penalty"
+                "court order", "freeze", "lockdown", "penalty", "warrant"
             ])
-            if is_urgent:
+            is_delivery_impersonation = any(kw in text_lower for kw in [
+                "fedex", "dhl", "customs parcel", "narcotics package", "illegal contraband", "parcel detained"
+            ])
+            is_family_emergency = any(kw in text_lower for kw in [
+                "hospital emergency", "in police custody", "bail money", "kidnapped", "accident urgent"
+            ])
+            is_suspicious_instruction = any(kw in text_lower for kw in [
+                "do not hang up", "stay on the line", "do not tell anyone", "private room",
+                "keep confidential", "maintain secrecy", "official secrets"
+            ])
+
+            if is_urgent or is_delivery_impersonation or is_family_emergency or is_suspicious_instruction:
                 intent_score += 25.0
+                detail_parts = []
+                if is_urgent:
+                    detail_parts.append("High-pressure coercive deadline framing")
+                if is_delivery_impersonation:
+                    detail_parts.append("Delivery/customs parcel pretext impersonation")
+                if is_family_emergency:
+                    detail_parts.append("Fabricated family emergency pretext")
+                if is_suspicious_instruction:
+                    detail_parts.append("Social engineering secrecy/isolation instruction")
+
                 sig = CallSignal(
                     category="INTENT",
-                    text="Urgency detected",
-                    detail="High-pressure linguistic coercive deadline framing",
-                    severity="HIGH",
+                    text="Coercive intent & suspicious instructions detected" if is_suspicious_instruction else "Urgency & pretext detected",
+                    detail=" | ".join(detail_parts) if detail_parts else "High-pressure linguistic coercive framing",
+                    severity="CRITICAL" if (is_delivery_impersonation or is_suspicious_instruction) else "HIGH",
                     score_impact=25.0
                 )
                 signals.append(sig)
@@ -209,12 +230,12 @@ class CallThreatScorer:
                     state="Coercive",
                     badge_color="red",
                     title="Communication",
-                    headline="High Pressure",
-                    detail="Coercive deadlines framing immediate account lockdown or legal action.",
+                    headline="High Pressure / Pretext",
+                    detail="Coercive deadlines framing immediate account lockdown, digital arrest, or isolation.",
                     is_flagged=True
                 )
 
-        # 4. Evaluate Requested Action (OTP, Passwords, Wire Transfer)
+        # 4. Evaluate Requested Action (OTP, Passwords, Wire Transfer, Remote Access)
         action_score = 0.0
         request_state = QuadrantState(
             state="None",
@@ -226,16 +247,16 @@ class CallThreatScorer:
         )
 
         if text_lower:
-            is_otp_demanded = any(kw in text_lower for kw in ["otp", "pin", "password", "cvv", "passcode", "code", "6-digit"])
-            is_money_demanded = any(kw in text_lower for kw in ["transfer", "wire", "pay", "send money", "upi", "account routing", "deposit"])
-            is_remote_access = any(kw in text_lower for kw in ["anydesk", "teamviewer", "rustdesk", "quicksupport"])
+            is_otp_demanded = any(kw in text_lower for kw in ["otp", "pin", "password", "cvv", "passcode", "code", "6-digit", "security token"])
+            is_money_demanded = any(kw in text_lower for kw in ["transfer", "wire", "pay", "send money", "upi", "account routing", "deposit", "escrow", "safe account"])
+            is_remote_access = any(kw in text_lower for kw in ["anydesk", "teamviewer", "rustdesk", "quicksupport", "screen share", "remote desktop"])
 
             if is_money_demanded:
                 action_score += 25.0
                 sig = CallSignal(
                     category="ACTION",
                     text="Financial request detected",
-                    detail="Active solicitation for urgent account fund re-routing or payment",
+                    detail="Active solicitation for urgent account fund re-routing, escrow deposit, or payment",
                     severity="CRITICAL",
                     score_impact=25.0
                 )
@@ -259,7 +280,7 @@ class CallThreatScorer:
                 sig = CallSignal(
                     category="ACTION",
                     text="Remote access software solicited",
-                    detail="Caller demands installation of remote desktop software",
+                    detail="Caller demands installation of remote desktop software (AnyDesk/TeamViewer/RustDesk)",
                     severity="CRITICAL",
                     score_impact=30.0
                 )

@@ -81,11 +81,13 @@ export const CallProtectionView: React.FC<CallProtectionViewProps> = ({
   const [threatScore, setThreatScore] = useState<number>(45);
   const [threatLevel, setThreatLevel] = useState<'TRUSTED' | 'CAUTION' | 'SUSPICIOUS' | 'HIGH RISK'>('CAUTION');
   const [verificationState, setVerificationState] = useState<string>('SUSPICIOUS');
-  const [confidence, setConfidence] = useState<number | null>(94);
-  const [audioStatus, setAudioStatus] = useState<'UNAVAILABLE' | 'ACTIVE' | 'COMPLETED'>('ACTIVE');
+  const [confidence, setConfidence] = useState<number | null>(null);
+  const [audioStatus, setAudioStatus] = useState<'UNAVAILABLE' | 'ACTIVE' | 'COMPLETED'>('UNAVAILABLE');
   const [signals, setSignals] = useState<CallSignalData[]>([]);
   const [isDemo, setIsDemo] = useState<boolean>(isDemoMode);
   const [eventsLog, setEventsLog] = useState<CallProtectionEvent[]>([]);
+  const [carrierInfo, setCarrierInfo] = useState<any>(null);
+  const [attestation, setAttestation] = useState<any>(null);
 
   // Quadrants state
   const [quadrants, setQuadrants] = useState<{
@@ -98,41 +100,41 @@ export const CallProtectionView: React.FC<CallProtectionViewProps> = ({
       state: 'Suspicious',
       badge_color: 'orange',
       title: 'Caller Identity',
-      headline: 'Unverified VoIP',
-      detail: 'Fails carrier STIR/SHAKEN certification.',
+      headline: 'Unverified Line',
+      detail: 'Fails carrier cryptographic STIR/SHAKEN validation.',
       is_flagged: true
     },
     what: {
-      state: 'Coercive',
-      badge_color: 'red',
+      state: 'Normal',
+      badge_color: 'emerald',
       title: 'Communication',
-      headline: 'High Pressure',
-      detail: 'Coercive deadlines framing account lockdown.',
-      is_flagged: true
+      headline: 'Standard Dialogue',
+      detail: 'Conversational tone within normal baseline parameters.',
+      is_flagged: false
     },
     voice: {
-      state: 'AI Clone',
-      badge_color: 'purple',
+      state: 'Unavailable',
+      badge_color: 'slate',
       title: 'Voice Authenticity',
-      headline: 'Synthetic Vocoder',
-      detail: 'Synthetic pitch discontinuities flagged at 91%.',
-      is_flagged: true
+      headline: 'Audio Telemetry Offline',
+      detail: 'Audio analysis unavailable; awaiting media feed.',
+      is_flagged: false
     },
     request: {
-      state: 'Critical',
-      badge_color: 'red',
+      state: 'None',
+      badge_color: 'emerald',
       title: 'Requested Action',
-      headline: 'OTP / Transfer',
-      detail: 'Demands verbal disclosure of 6-digit MFA passcode.',
-      is_flagged: true
+      headline: 'Informational',
+      detail: 'No sensitive credential or financial routing requested.',
+      is_flagged: false
     }
   });
 
   const sessionRef = useRef<CallProtectionSession | null>(null);
+  const streamCleanupRef = useRef<(() => void) | null>(null);
 
   // 1. Initialize or connect Call Protection session on mount
   useEffect(() => {
-    let cleanupStream: (() => void) | null = null;
     let isCancelled = false;
 
     const initSession = async () => {
@@ -154,6 +156,8 @@ export const CallProtectionView: React.FC<CallProtectionViewProps> = ({
         setVerificationState(newSession.verification_state);
         setIsDemo(newSession.is_demo);
         setAudioStatus(newSession.audio_analysis_status);
+        setCarrierInfo(newSession.carrier_info);
+        setAttestation(newSession.attestation);
 
         if (newSession.confidence !== undefined) {
           setConfidence(newSession.confidence);
@@ -166,7 +170,11 @@ export const CallProtectionView: React.FC<CallProtectionViewProps> = ({
         }
 
         // Connect to live WebSocket / SSE event stream
-        cleanupStream = callProtectionService.connectLiveStream(
+        if (streamCleanupRef.current) {
+          streamCleanupRef.current();
+          streamCleanupRef.current = null;
+        }
+        streamCleanupRef.current = callProtectionService.connectLiveStream(
           newSession.id,
           (event: CallProtectionEvent) => {
             if (isCancelled) return;
@@ -189,7 +197,10 @@ export const CallProtectionView: React.FC<CallProtectionViewProps> = ({
 
     return () => {
       isCancelled = true;
-      if (cleanupStream) cleanupStream();
+      if (streamCleanupRef.current) {
+        streamCleanupRef.current();
+        streamCleanupRef.current = null;
+      }
     };
   }, [initialPhoneNumber, initialClaimedIdentity, isDemoMode]);
 
@@ -215,6 +226,25 @@ export const CallProtectionView: React.FC<CallProtectionViewProps> = ({
       if (p.verification_state) {
         setVerificationState(p.verification_state);
       }
+      if (p.carrier_info) {
+        setCarrierInfo(p.carrier_info);
+      }
+      if (p.caller_id && p.caller_id.carrier) {
+        setCarrierInfo((prev: any) => ({
+          ...prev,
+          operator: p.caller_id.carrier,
+          circle: p.caller_id.circle_or_region,
+          country: p.caller_id.country,
+          flag: p.caller_id.country_flag,
+          lineType: p.caller_id.line_type
+        }));
+      }
+      if (p.attestation) {
+        setAttestation(p.attestation);
+      }
+      if (p.caller_id && p.caller_id.stir_shaken_attestation) {
+        setAttestation({ stir_shaken: p.caller_id.stir_shaken_attestation });
+      }
       if (p.audio_status) {
         setAudioStatus(p.audio_status);
       }
@@ -224,6 +254,55 @@ export const CallProtectionView: React.FC<CallProtectionViewProps> = ({
       if (p.signals && Array.isArray(p.signals)) {
         setSignals(p.signals);
       }
+    }
+  };
+
+  // Switch incoming call scenarios with genuine backend session
+  const handleSwitchScenario = async (phone: string, claimed: string) => {
+    setCallerNumber(phone);
+    setClaimedIdentity(claimed);
+    setCallDuration(0);
+    setIsCallActive(true);
+    setEventsLog([]);
+    setActionNotice(`Connecting live intercept defense to ${phone} (${claimed})...`);
+
+    if (streamCleanupRef.current) {
+      streamCleanupRef.current();
+      streamCleanupRef.current = null;
+    }
+
+    try {
+      const newSession = await callProtectionService.startProtectionSession({
+        phoneNumber: phone,
+        claimedIdentity: claimed,
+        demoMode: true
+      });
+      setSession(newSession);
+      sessionRef.current = newSession;
+      setThreatScore(newSession.threat_score);
+      setThreatLevel(newSession.threat_level);
+      setVerificationState(newSession.verification_state);
+      setIsDemo(newSession.is_demo);
+      setAudioStatus(newSession.audio_analysis_status);
+      setCarrierInfo(newSession.carrier_info);
+      setAttestation(newSession.attestation);
+      setConfidence(newSession.confidence ?? null);
+      if (newSession.signals && newSession.signals.length > 0) {
+        setSignals(newSession.signals);
+      }
+      if (newSession.quadrants) {
+        setQuadrants(newSession.quadrants);
+      }
+
+      streamCleanupRef.current = callProtectionService.connectLiveStream(
+        newSession.id,
+        (evt) => handleLiveStreamEvent(evt),
+        (err) => console.warn('Stream notice:', err)
+      );
+      setActionNotice(`Live intercept active on ${phone} (${claimed})`);
+    } catch (e) {
+      console.warn('Scenario switch fallback:', e);
+      setActionNotice(`Switched to ${phone} (${claimed}) [Offline Sim]`);
     }
   };
 
@@ -437,13 +516,7 @@ export const CallProtectionView: React.FC<CallProtectionViewProps> = ({
             <button
               key={i}
               type="button"
-              onClick={() => {
-                setCallerNumber(sc.phone);
-                setClaimedIdentity(sc.claimed);
-                setCallDuration(0);
-                setIsCallActive(true);
-                setActionNotice(`Live call switched to ${sc.phone} (${sc.claimed})`);
-              }}
+              onClick={() => handleSwitchScenario(sc.phone, sc.claimed)}
               className={`px-2.5 py-1 rounded-lg text-[10px] font-mono font-semibold whitespace-nowrap transition-all cursor-pointer border ${
                 callerNumber === sc.phone
                   ? 'bg-cyan-950 border-cyan-400 text-cyan-300 shadow-[0_0_10px_rgba(6,182,212,0.3)]'
@@ -536,6 +609,15 @@ export const CallProtectionView: React.FC<CallProtectionViewProps> = ({
 
             <div className="text-[11px] text-slate-300 truncate">
               Claimed: <strong className="text-white font-medium">{claimedIdentity}</strong>
+            </div>
+
+            {/* Carrier & Telecom Origin Metadata */}
+            <div className="flex items-center gap-1.5 pt-0.5 text-[9px] sm:text-[10px] font-mono text-slate-400 truncate">
+              <span className="text-slate-300 font-semibold">{carrierInfo?.flag || '🇮🇳'} {carrierInfo?.operator || 'Carrier Network'}</span>
+              <span>•</span>
+              <span className="text-slate-400">{carrierInfo?.circle || 'National Trunk'}</span>
+              <span>•</span>
+              <span className="text-slate-500 truncate">{attestation?.stir_shaken || 'STIR/SHAKEN: Level A Absent'}</span>
             </div>
           </div>
         </div>
@@ -837,6 +919,82 @@ export const CallProtectionView: React.FC<CallProtectionViewProps> = ({
                     <span>Flagged</span>
                     <Icon className="w-3 h-3 opacity-80" />
                   </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* ============================================================ */}
+      {/* LIVE THREAT TIMELINE & EVENT LOG                             */}
+      {/* ============================================================ */}
+      <div className="p-3 sm:p-4 rounded-xl bg-slate-900/90 border border-slate-800 shadow-md backdrop-blur-sm space-y-2.5">
+        <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+          <div className="flex items-center gap-1.5">
+            <Activity className="w-3.5 h-3.5 text-cyan-400" />
+            <h3 className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-slate-300 font-mono">
+              Live Threat Timeline & Event Log
+            </h3>
+          </div>
+          <div className="flex items-center gap-1.5 font-mono text-[9px]">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="text-cyan-400 font-bold">{eventsLog.length} Live Events</span>
+          </div>
+        </div>
+
+        {eventsLog.length === 0 ? (
+          <div className="py-3 text-center text-[10px] font-mono text-slate-500">
+            Awaiting inbound telecom telemetry events...
+          </div>
+        ) : (
+          <div className="space-y-1.5 max-h-44 overflow-y-auto pr-1">
+            {eventsLog.slice(0, 8).map((evt, idx) => {
+              const timeStr = evt.timestamp
+                ? new Date(evt.timestamp).toLocaleTimeString()
+                : 'Live';
+              const isHighEvt = (evt.threat_score ?? 0) >= 80;
+
+              return (
+                <div
+                  key={`${evt.event_type}-${idx}`}
+                  className="p-2 rounded-lg bg-slate-950/80 border border-slate-800/80 flex items-start justify-between gap-2 text-left"
+                >
+                  <div className="space-y-0.5 min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className={`text-[9px] font-mono font-bold px-1.5 py-0.2 rounded border ${
+                        isHighEvt
+                          ? 'bg-red-950/70 border-red-500/40 text-red-400'
+                          : 'bg-cyan-950/70 border-cyan-500/40 text-cyan-300'
+                      }`}>
+                        {evt.event_type.replace(/_/g, ' ')}
+                      </span>
+                      {evt.is_simulated && (
+                        <span className="text-[8px] font-mono text-amber-400 bg-amber-950/50 border border-amber-500/30 px-1 rounded">
+                          SIMULATED
+                        </span>
+                      )}
+                      <span className="text-[9px] font-mono text-slate-500">{timeStr}</span>
+                    </div>
+
+                    <p className="text-[10px] text-slate-300 font-mono truncate">
+                      {evt.payload?.message ||
+                       evt.payload?.verdict ||
+                       (evt.payload?.action ? `Action executed: ${evt.payload.action}` : '') ||
+                       evt.simulation_notice ||
+                       'Live signal processed'}
+                    </p>
+                  </div>
+
+                  {evt.threat_score !== undefined && (
+                    <div className="text-right shrink-0">
+                      <span className={`text-[10px] font-mono font-bold ${
+                        isHighEvt ? 'text-red-400' : 'text-cyan-400'
+                      }`}>
+                        {Math.round(evt.threat_score)} / 100
+                      </span>
+                    </div>
+                  )}
                 </div>
               );
             })}

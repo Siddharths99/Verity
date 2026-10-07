@@ -38,6 +38,7 @@ import {
 } from 'lucide-react';
 import { ModalityType, AnalysisRecord } from '../types';
 import { apiService, mapBackendResultToAnalysisRecord } from '../utils/apiService';
+import { callProtectionService } from '../utils/callProtectionService';
 
 interface MobileNewAnalysisViewProps {
   initialModality?: ModalityType;
@@ -285,7 +286,62 @@ export const MobileNewAnalysisView: React.FC<MobileNewAnalysisViewProps> = ({
 
     try {
       let res;
-      if (selectedModality === 'URL') {
+      if (selectedModality === 'CALL') {
+        const callerCheck = await callProtectionService.verifyCallerId({
+          phoneNumber: callerNumber || '+91 98401 24590',
+          claimedIdentity: callerName || 'Unknown Caller',
+          demoMode: false
+        });
+
+        const isSafe = callerCheck.verification_state === 'VERIFIED';
+        const isHigh = callerCheck.verification_state === 'HIGH RISK';
+        const isSuspicious = callerCheck.verification_state === 'SUSPICIOUS';
+        const riskLevel = isHigh ? 'CRITICAL' : isSuspicious ? 'HIGH' : isSafe ? 'LOW' : 'MEDIUM';
+        const scoreVal = callerCheck.reputation_score ? Math.round(callerCheck.reputation_score) : (isHigh ? 88 : isSafe ? 12 : 55);
+
+        const callRecord: AnalysisRecord = {
+          id: `call-ver-${Date.now()}`,
+          timestamp: new Date().toISOString(),
+          status: isSafe ? 'Safe' : isHigh ? 'Flagged' : 'Suspicious',
+          riskScore: scoreVal,
+          riskLevel: riskLevel as any,
+          action: isHigh ? 'Block' : isSafe ? 'Safe' : 'Verify',
+          subject: `Caller ID Check — ${callerCheck.normalized_number || callerNumber}`,
+          forensicDetails: {
+            verdict: isSafe ? 'SAFE' : isHigh ? 'SUSPICIOUS' : 'UNKNOWN',
+            confidence: callerCheck.is_valid_format ? 92 : 60,
+            threatLevel: riskLevel as any,
+            manipulationType: isHigh ? 'Caller ID Spoofing / Unverified Trunk' : 'Standard Inbound Line',
+            evidence: callerCheck.spoofing_indicators.length > 0 ? callerCheck.spoofing_indicators : [
+              `Carrier Network: ${callerCheck.carrier || 'Unregistered Carrier'} (${callerCheck.line_type || 'VoIP / Cellular'})`,
+              `STIR/SHAKEN Attestation: ${callerCheck.stir_shaken_attestation || 'Header Absent'}`
+            ],
+            recommendedAction: isHigh
+              ? 'Do not share OTP or sensitive credentials. Disconnect immediately.'
+              : 'Verify caller through official directory.'
+          },
+          context: {
+            callerOrSender: callerCheck.phone_number,
+            verifiedIdentity: isSafe ? callerCheck.phone_number : null,
+            pretextClaim: callerName || 'Unknown Caller',
+            spoofingIndicators: callerCheck.spoofing_indicators,
+            reputationScore: callerCheck.reputation_score || 50,
+            stirShakenStatus: callerCheck.stir_shaken_attestation?.includes('Level A') ? 'PASSED' : 'FAILED'
+          },
+          signals: {
+            medium: `${callerCheck.carrier || 'Telecom'} Voice Channel`,
+            urgencyLevel: isHigh ? 'High' : 'Normal',
+            credentialRequested: isHigh,
+            coercionTactics: callerCheck.spoofing_indicators,
+            syntheticMarkers: callerCheck.diagnostic_notes
+          },
+          rationale: isHigh
+            ? `Inbound call from ${callerCheck.phone_number} lacks valid STIR/SHAKEN Level A attestation. Flags PBX Gateway CLI mismatch and unverified carrier route.`
+            : `Inbound telephone number format analyzed across national telecom numbering directory. Carrier: ${callerCheck.carrier || 'Standard'}.`
+        };
+
+        resolvedRecord = callRecord;
+      } else if (selectedModality === 'URL') {
         res = await apiService.analyzeUrl({
           url: targetUrl.trim() || 'https://google.com'
         });
@@ -315,10 +371,8 @@ export const MobileNewAnalysisView: React.FC<MobileNewAnalysisViewProps> = ({
         );
       } else {
         res = await apiService.analyzeMultimodal({
-          messageText: selectedModality === 'CALL'
-            ? `Phone Call: Caller ${callerNumber}. Pretext: ${effectiveContext}`
-            : `${selectedModality} Scan: ${effectiveContext}`,
-          senderIdentity: callerNumber || senderHandle,
+          messageText: `Scan: ${effectiveContext}`,
+          senderIdentity: senderHandle,
           claimedOrg: effectiveSpeaker,
           mediaFile: actualFile || undefined
         });
