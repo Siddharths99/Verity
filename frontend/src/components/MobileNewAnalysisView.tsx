@@ -45,6 +45,8 @@ interface MobileNewAnalysisViewProps {
   onRunAnalysis: (record: AnalysisRecord) => void;
   onNavigateTab?: (tab: string) => void;
   activeMobileTab?: string;
+  hideHeader?: boolean;
+  hideBottomNav?: boolean;
 }
 
 export const MobileNewAnalysisView: React.FC<MobileNewAnalysisViewProps> = ({
@@ -52,7 +54,9 @@ export const MobileNewAnalysisView: React.FC<MobileNewAnalysisViewProps> = ({
   onBack,
   onRunAnalysis,
   onNavigateTab = () => {},
-  activeMobileTab = 'analyze'
+  activeMobileTab = 'analyze',
+  hideHeader = false,
+  hideBottomNav = false
 }) => {
   const [selectedModality, setSelectedModality] = useState<string>(
     initialModality ? initialModality.toUpperCase() : 'CALL'
@@ -422,27 +426,29 @@ export const MobileNewAnalysisView: React.FC<MobileNewAnalysisViewProps> = ({
       {/* ============================================================ */}
       {/* 1. TOP HEADER WITH HIGH-VISIBILITY BACK BUTTON               */}
       {/* ============================================================ */}
-      <div className="flex items-center justify-between py-1.5 border-b border-slate-800/80">
-        <button
-          onClick={onBack}
-          className="flex items-center gap-1.5 text-xs font-bold text-white bg-slate-900 border-2 border-cyan-400 hover:bg-cyan-950/80 hover:border-cyan-300 px-3 py-1.5 rounded-xl transition-all shadow-[0_0_15px_rgba(6,182,212,0.45)] cursor-pointer active:scale-95"
-          title="Back to previous screen"
-        >
-          <ChevronLeft className="w-4 h-4 stroke-[3] text-cyan-400" />
-          <span className="tracking-wide">Back</span>
-        </button>
+      {!hideHeader && (
+        <div className="flex items-center justify-between py-1.5 border-b border-slate-800/80">
+          <button
+            onClick={onBack}
+            className="flex items-center gap-1.5 text-xs font-bold text-white bg-slate-900 border-2 border-cyan-400 hover:bg-cyan-950/80 hover:border-cyan-300 px-3 py-1.5 rounded-xl transition-all shadow-[0_0_15px_rgba(6,182,212,0.45)] cursor-pointer active:scale-95"
+            title="Back to previous screen"
+          >
+            <ChevronLeft className="w-4 h-4 stroke-[3] text-cyan-400" />
+            <span className="tracking-wide">Back</span>
+          </button>
 
-        <div className="flex items-center gap-1.5">
-          <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-cyan-500/20 via-blue-600/20 to-slate-900 border border-cyan-500/40 flex items-center justify-center">
-            <Shield className="w-3.5 h-3.5 text-cyan-400" />
+          <div className="flex items-center gap-1.5">
+            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-cyan-500/20 via-blue-600/20 to-slate-900 border border-cyan-500/40 flex items-center justify-center">
+              <Shield className="w-3.5 h-3.5 text-cyan-400" />
+            </div>
+            <span className="text-base font-bold tracking-tight text-white font-sans">
+              VERITY
+            </span>
           </div>
-          <span className="text-base font-bold tracking-tight text-white font-sans">
-            VERITY
-          </span>
-        </div>
 
-        <div className="w-14" />
-      </div>
+          <div className="w-14" />
+        </div>
+      )}
 
       {/* ============================================================ */}
       {/* 2. TITLE                                                     */}
@@ -902,74 +908,76 @@ export const MobileNewAnalysisView: React.FC<MobileNewAnalysisViewProps> = ({
       {/* ============================================================ */}
       {/* 7. FIXED BOTTOM NAVIGATION BAR (5 TABS)                      */}
       {/* ============================================================ */}
-      <div className="fixed bottom-0 left-0 right-0 z-50 bg-slate-950/95 border-t border-slate-800/80 backdrop-blur-md px-4 py-1.5">
-        <div className="max-w-md mx-auto flex items-center justify-around">
-          
-          <button
-            onClick={() => onNavigateTab('dashboard')}
-            className={`flex flex-col items-center gap-0.5 text-[9px] font-mono transition-colors cursor-pointer py-0.5 ${
-              activeMobileTab === 'home' || activeMobileTab === 'dashboard'
-                ? 'text-cyan-400 font-bold'
-                : 'text-slate-500 hover:text-slate-300'
-            }`}
-          >
-            <Home className="w-3.5 h-3.5" />
-            <span>Home</span>
-          </button>
+      {!hideBottomNav && (
+        <div className="fixed bottom-0 left-0 right-0 z-50 bg-slate-950/95 border-t border-slate-800/80 backdrop-blur-md px-4 py-1.5">
+          <div className="max-w-md mx-auto flex items-center justify-around">
+            
+            <button
+              onClick={() => onNavigateTab('dashboard')}
+              className={`flex flex-col items-center gap-0.5 text-[9px] font-mono transition-colors cursor-pointer py-0.5 ${
+                activeMobileTab === 'home' || activeMobileTab === 'dashboard'
+                  ? 'text-cyan-400 font-bold'
+                  : 'text-slate-500 hover:text-slate-300'
+              }`}
+            >
+              <Home className="w-3.5 h-3.5" />
+              <span>Home</span>
+            </button>
 
-          <button
-            onClick={() => onNavigateTab('analyze')}
-            className={`flex flex-col items-center gap-0.5 text-[9px] font-mono transition-colors cursor-pointer py-0.5 ${
-              activeMobileTab === 'analyze'
-                ? 'text-cyan-400 font-bold'
-                : 'text-slate-500 hover:text-slate-300'
-            }`}
-          >
-            <Plus className="w-3.5 h-3.5" />
-            <span>Analyze</span>
-          </button>
+            <button
+              onClick={() => onNavigateTab('analyze')}
+              className={`flex flex-col items-center gap-0.5 text-[9px] font-mono transition-colors cursor-pointer py-0.5 ${
+                activeMobileTab === 'analyze'
+                  ? 'text-cyan-400 font-bold'
+                  : 'text-slate-500 hover:text-slate-300'
+              }`}
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Analyze</span>
+            </button>
 
-          <button
-            onClick={() => onNavigateTab('history')}
-            className={`flex flex-col items-center gap-0.5 text-[9px] font-mono transition-colors cursor-pointer py-0.5 ${
-              activeMobileTab === 'history'
-                ? 'text-cyan-400 font-bold'
-                : 'text-slate-500 hover:text-slate-300'
-            }`}
-          >
-            <FileText className="w-3.5 h-3.5" />
-            <span>History</span>
-          </button>
+            <button
+              onClick={() => onNavigateTab('history')}
+              className={`flex flex-col items-center gap-0.5 text-[9px] font-mono transition-colors cursor-pointer py-0.5 ${
+                activeMobileTab === 'history'
+                  ? 'text-cyan-400 font-bold'
+                  : 'text-slate-500 hover:text-slate-300'
+              }`}
+            >
+              <FileText className="w-3.5 h-3.5" />
+              <span>History</span>
+            </button>
 
-          <button
-            onClick={() => onNavigateTab('incidents')}
-            className={`flex flex-col items-center gap-0.5 text-[9px] font-mono transition-colors cursor-pointer py-0.5 relative ${
-              activeMobileTab === 'incidents'
-                ? 'text-red-400 font-bold'
-                : 'text-slate-500 hover:text-slate-300'
-            }`}
-          >
-            <div className="relative">
-              <Bell className="w-3.5 h-3.5" />
-              <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-red-500 animate-ping" />
-            </div>
-            <span>Alerts</span>
-          </button>
+            <button
+              onClick={() => onNavigateTab('incidents')}
+              className={`flex flex-col items-center gap-0.5 text-[9px] font-mono transition-colors cursor-pointer py-0.5 relative ${
+                activeMobileTab === 'incidents'
+                  ? 'text-red-400 font-bold'
+                  : 'text-slate-500 hover:text-slate-300'
+              }`}
+            >
+              <div className="relative">
+                <Bell className="w-3.5 h-3.5" />
+                <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-red-500 animate-ping" />
+              </div>
+              <span>Alerts</span>
+            </button>
 
-          <button
-            onClick={() => onNavigateTab('settings')}
-            className={`flex flex-col items-center gap-0.5 text-[9px] font-mono transition-colors cursor-pointer py-0.5 ${
-              activeMobileTab === 'settings'
-                ? 'text-cyan-400 font-bold'
-                : 'text-slate-500 hover:text-slate-300'
-            }`}
-          >
-            <SlidersHorizontal className="w-3.5 h-3.5" />
-            <span>Settings</span>
-          </button>
+            <button
+              onClick={() => onNavigateTab('settings')}
+              className={`flex flex-col items-center gap-0.5 text-[9px] font-mono transition-colors cursor-pointer py-0.5 ${
+                activeMobileTab === 'settings'
+                  ? 'text-cyan-400 font-bold'
+                  : 'text-slate-500 hover:text-slate-300'
+              }`}
+            >
+              <SlidersHorizontal className="w-3.5 h-3.5" />
+              <span>Settings</span>
+            </button>
 
+          </div>
         </div>
-      </div>
+      )}
 
     </div>
   );

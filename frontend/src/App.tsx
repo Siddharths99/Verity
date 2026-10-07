@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Header } from './components/Header';
+import { MobileHeader } from './components/MobileHeader';
+import { MobileBottomNav } from './components/MobileBottomNav';
 import { HeroSection } from './components/HeroSection';
 import { SecurityStatusCard } from './components/SecurityStatusCard';
 import { TrustOverview } from './components/TrustOverview';
@@ -29,7 +31,7 @@ import { AnalysisRecord, ModalityType } from './types';
 import { ThemeMode, UserProfile, INITIAL_USER_PROFILE } from './types/user';
 import { exportAuditLogToPdf } from './utils/pdfExport';
 import { apiService, mapBackendIncidentToAnalysisRecord } from './utils/apiService';
-import { Smartphone, Monitor } from 'lucide-react';
+import { Smartphone, Monitor, CheckCircle2, AlertTriangle, Info, X } from 'lucide-react';
 
 const STORAGE_KEY = 'verity_analysis_records_v3';
 
@@ -198,8 +200,42 @@ export default function App() {
     };
   }, []);
 
-  // Pop-up notifications disabled per user preference
-  const showToast = (_text?: string, _type: 'success' | 'alert' | 'info' = 'info') => {};
+  // State persistence, save status & visual toast notifications
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'alert' | 'info' } | null>(null);
+
+  const showToast = (message?: string, type: 'success' | 'alert' | 'info' = 'info') => {
+    if (!message) return;
+    setToast({ message, type });
+  };
+
+  useEffect(() => {
+    if (!toast) return;
+    const timer = setTimeout(() => {
+      setToast(null);
+    }, 3500);
+    return () => clearTimeout(timer);
+  }, [toast]);
+
+  const handleSaveAllState = () => {
+    setSaveStatus('saving');
+    try {
+      saveRecordsToStorage(records);
+      localStorage.setItem('verity_user_profile', JSON.stringify(user));
+      localStorage.setItem('verity_protection_active', JSON.stringify(protectionActive));
+      localStorage.setItem('verity_theme', theme);
+      exportAuditLogToPdf(records, user.email);
+      setSaveStatus('saved');
+      showToast('✓ Protection state saved & forensic audit report exported!', 'success');
+      setTimeout(() => {
+        setSaveStatus('idle');
+      }, 2500);
+    } catch (err) {
+      console.error('Error saving state:', err);
+      setSaveStatus('idle');
+      showToast('Failed to save state to local storage', 'alert');
+    }
+  };
 
   const handleToggleProtection = () => {
     setProtectionActive((prev) => {
@@ -305,8 +341,30 @@ export default function App() {
   return (
     <div className="min-h-screen flex flex-col transition-colors duration-200">
       
-      {/* Top Navigation Bar (Shown on Desktop) */}
-      {!isMobileMode && (
+      {/* Real-time Status Notification Toast */}
+      {toast && (
+        <div 
+          role="status"
+          aria-live="polite"
+          className="fixed top-4 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2.5 px-4 py-2.5 rounded-xl shadow-2xl backdrop-blur-md border animate-in fade-in slide-in-from-top-4 duration-200 max-w-[90vw] text-xs font-mono select-none bg-slate-950/95 border-slate-700 text-slate-200"
+        >
+          {toast.type === 'success' && <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />}
+          {toast.type === 'alert' && <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />}
+          {toast.type === 'info' && <Info className="w-4 h-4 text-cyan-400 shrink-0" />}
+          <span className="truncate">{toast.message}</span>
+          <button
+            type="button"
+            onClick={() => setToast(null)}
+            className="ml-1 p-0.5 text-slate-400 hover:text-slate-200 transition-colors"
+            aria-label="Dismiss toast"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
+
+      {/* Top Navigation Bar: Desktop Header or Mobile Header */}
+      {!isMobileMode ? (
         <Header
           activeTab={activeTab}
           onTabChange={(tab) => {
@@ -322,6 +380,36 @@ export default function App() {
           onOpenChangeNumber={() => setIsChangeNumberOpen(true)}
           onOpenProfile={() => setIsProfileOpen(true)}
           onExportAuditLog={handleExportAuditLog}
+          onSaveState={handleSaveAllState}
+          saveStatus={saveStatus}
+        />
+      ) : (
+        <MobileHeader
+          onBack={mobileSubView !== 'dashboard' ? () => setMobileSubView('dashboard') : undefined}
+          currentViewTitle={
+            mobileSubView === 'dashboard'
+              ? 'Overview'
+              : mobileSubView === 'new-analysis'
+              ? 'New Analysis'
+              : mobileSubView === 'history'
+              ? 'Audit Log'
+              : mobileSubView === 'result'
+              ? 'Scam Dossier'
+              : mobileSubView === 'call-protection'
+              ? 'Active Call'
+              : 'Settings'
+          }
+          currentTheme={theme}
+          onThemeChange={handleThemeChange}
+          onOpenChangePassword={() => setIsChangePasswordOpen(true)}
+          onOpenChangeNumber={() => setIsChangeNumberOpen(true)}
+          onExportAuditLog={handleExportAuditLog}
+          onSaveState={handleSaveAllState}
+          protectionActive={protectionActive}
+          onToggleProtection={handleToggleProtection}
+          user={user}
+          onOpenProfile={() => setIsProfileOpen(true)}
+          saveStatus={saveStatus}
         />
       )}
 
@@ -382,6 +470,8 @@ export default function App() {
                 else setMobileSubView('new-analysis');
               }}
               activeMobileTab="analyze"
+              hideHeader={true}
+              hideBottomNav={true}
             />
           ) : mobileSubView === 'history' ? (
             <MobileHistoryView
@@ -400,6 +490,7 @@ export default function App() {
               }}
               onExportAuditLog={handleExportAuditLog}
               activeMobileTab="history"
+              hideHeader={true}
             />
           ) : mobileSubView === 'result' ? (
             <MobileAnalysisResultView
@@ -427,6 +518,8 @@ export default function App() {
                 else setMobileSubView('result');
               }}
               activeMobileTab="incidents"
+              hideHeader={true}
+              hideBottomNav={true}
             />
           ) : mobileSubView === 'call-protection' ? (
             <CallProtectionView
@@ -466,7 +559,7 @@ export default function App() {
                 setOtpModalType(type);
                 setIsOtpModalOpen(true);
               }}
-              onSaveSettings={() => showToast('Protection settings saved successfully', 'success')}
+              onSaveSettings={handleSaveAllState}
               onExportAuditLog={handleExportAuditLog}
               onNavigateTab={(tab) => {
                 if (tab === 'home' || tab === 'dashboard') setMobileSubView('dashboard');
@@ -478,6 +571,8 @@ export default function App() {
               }}
               onOpenProfile={() => setIsProfileOpen(true)}
               activeMobileTab="settings"
+              hideHeader={true}
+              hideBottomNav={true}
             />
           ) : (
             <MobileDashboardView
@@ -503,6 +598,15 @@ export default function App() {
               onOpenProfile={() => setIsProfileOpen(true)}
               records={records}
               activeMobileTab="home"
+              currentTheme={theme}
+              onThemeChange={handleThemeChange}
+              onOpenChangePassword={() => setIsChangePasswordOpen(true)}
+              onOpenChangeNumber={() => setIsChangeNumberOpen(true)}
+              onExportAuditLog={handleExportAuditLog}
+              onSaveState={handleSaveAllState}
+              saveStatus={saveStatus}
+              hideHeader={true}
+              hideBottomNav={true}
             />
           )
         ) : (
@@ -662,6 +766,34 @@ export default function App() {
             </div>
           </div>
         </footer>
+      )}
+
+      {/* Mobile Mode Unified Bottom Navigation (6 Tabs) */}
+      {isMobileMode && (
+        <MobileBottomNav
+          activeTab={
+            mobileSubView === 'dashboard'
+              ? 'home'
+              : mobileSubView === 'new-analysis'
+              ? 'analyze'
+              : mobileSubView === 'history'
+              ? 'history'
+              : mobileSubView === 'result'
+              ? 'alerts'
+              : mobileSubView === 'call-protection'
+              ? 'calls'
+              : 'settings'
+          }
+          onSelectTab={(tabId) => {
+            if (tabId === 'home' || tabId === 'dashboard') setMobileSubView('dashboard');
+            else if (tabId === 'analyze') setMobileSubView('new-analysis');
+            else if (tabId === 'history') setMobileSubView('history');
+            else if (tabId === 'alerts' || tabId === 'incidents') setMobileSubView('result');
+            else if (tabId === 'calls' || tabId === 'call-protection') setMobileSubView('call-protection');
+            else if (tabId === 'settings') setMobileSubView('settings');
+          }}
+          alertCount={records.filter((r) => r.risk === 'CRITICAL' || r.risk === 'HIGH').length}
+        />
       )}
 
       {/* Interactive AI Security Copilot & Chatbot (Bottom Right) */}

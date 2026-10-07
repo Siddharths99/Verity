@@ -277,3 +277,20 @@ def test_call_protection_session_lifecycle_and_actions(client):
     client.delete("/api/v1/call-protection/blocked-callers/+91 98401 24590")
 
 
+def test_copilot_chat_endpoint(client):
+    """
+    Test AI Copilot endpoint answers custom user questions.
+    """
+    resp = client.post("/api/v1/copilot/chat", json={
+        "message": "Someone called claiming to be CBI officer and said I am in digital arrest. What should I do?",
+        "history": []
+    })
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "reply" in data
+    assert len(data["reply"]) > 50
+    assert "digital arrest" in data["reply"].lower() or "cbi" in data["reply"].lower() or "verity" in data["reply"].lower()
+    assert isinstance(data.get("suggested_actions"), list)
+
+
+

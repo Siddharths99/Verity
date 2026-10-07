@@ -45,6 +45,8 @@ interface MobileAnalysisResultViewProps {
   onApprove?: () => void;
   onNavigateTab: (tab: string) => void;
   activeMobileTab?: string;
+  hideHeader?: boolean;
+  hideBottomNav?: boolean;
 }
 
 export const MobileAnalysisResultView: React.FC<MobileAnalysisResultViewProps> = ({
@@ -56,7 +58,9 @@ export const MobileAnalysisResultView: React.FC<MobileAnalysisResultViewProps> =
   onQuarantine,
   onApprove,
   onNavigateTab,
-  activeMobileTab = 'incidents'
+  activeMobileTab = 'incidents',
+  hideHeader = false,
+  hideBottomNav = false
 }) => {
   const [isVerifyModalOpen, setIsVerifyModalOpen] = useState<boolean>(false);
   const [currentStatus, setCurrentStatus] = useState<string | null>(null);
@@ -143,36 +147,38 @@ export const MobileAnalysisResultView: React.FC<MobileAnalysisResultViewProps> =
       {/* ============================================================ */}
       {/* 1. TOP HEADER WITH HIGH-VISIBILITY BACK BUTTON               */}
       {/* ============================================================ */}
-      <div className="flex items-center justify-between py-1.5 border-b border-slate-800/80">
-        <button
-          onClick={onBack}
-          className="flex items-center gap-1.5 text-xs font-bold text-white bg-slate-900 border-2 border-cyan-400 hover:bg-cyan-950/80 hover:border-cyan-300 px-3 py-1.5 rounded-xl transition-all shadow-[0_0_15px_rgba(6,182,212,0.45)] cursor-pointer active:scale-95"
-          title="Back to previous screen"
-        >
-          <ChevronLeft className="w-4 h-4 stroke-[3] text-cyan-400" />
-          <span className="tracking-wide">Back</span>
-        </button>
+      {!hideHeader && (
+        <div className="flex items-center justify-between py-1.5 border-b border-slate-800/80">
+          <button
+            onClick={onBack}
+            className="flex items-center gap-1.5 text-xs font-bold text-white bg-slate-900 border-2 border-cyan-400 hover:bg-cyan-950/80 hover:border-cyan-300 px-3 py-1.5 rounded-xl transition-all shadow-[0_0_15px_rgba(6,182,212,0.45)] cursor-pointer active:scale-95"
+            title="Back to previous screen"
+          >
+            <ChevronLeft className="w-4 h-4 stroke-[3] text-cyan-400" />
+            <span className="tracking-wide">Back</span>
+          </button>
 
-        <div className="text-center">
-          <h1 className="text-sm font-bold text-white tracking-tight font-sans">
-            Threat & Safety Alert
-          </h1>
-          <div className="flex items-center justify-center gap-1.5 text-[10px] text-slate-400 font-mono">
-            <span className="text-cyan-400">{currentRecord.id}</span>
-            <span>·</span>
-            <span>{currentRecord.time}</span>
+          <div className="text-center">
+            <h1 className="text-sm font-bold text-white tracking-tight font-sans">
+              Threat & Safety Alert
+            </h1>
+            <div className="flex items-center justify-center gap-1.5 text-[10px] text-slate-400 font-mono">
+              <span className="text-cyan-400">{currentRecord.id}</span>
+              <span>·</span>
+              <span>{currentRecord.time}</span>
+            </div>
           </div>
-        </div>
 
-        {/* Download Individual PDF Report */}
-        <button
-          onClick={handleDownloadPdf}
-          title="Download Incident Forensic PDF Report"
-          className="p-1.5 rounded-xl bg-slate-900 border border-cyan-500/40 text-cyan-400 hover:text-cyan-300 hover:bg-slate-800 transition-colors cursor-pointer shadow-xs"
-        >
-          <Download className="w-4 h-4" />
-        </button>
-      </div>
+          {/* Download Individual PDF Report */}
+          <button
+            onClick={handleDownloadPdf}
+            title="Download Incident Forensic PDF Report"
+            className="p-1.5 rounded-xl bg-slate-900 border border-cyan-500/40 text-cyan-400 hover:text-cyan-300 hover:bg-slate-800 transition-colors cursor-pointer shadow-xs"
+          >
+            <Download className="w-4 h-4" />
+          </button>
+        </div>
+      )}
 
       {/* ============================================================ */}
       {/* 2. PRIMARY RESULT RISK CARD                                  */}
@@ -452,74 +458,76 @@ export const MobileAnalysisResultView: React.FC<MobileAnalysisResultViewProps> =
       {/* ============================================================ */}
       {/* 5. FIXED BOTTOM NAVIGATION (5 TABS)                          */}
       {/* ============================================================ */}
-      <div className="fixed bottom-0 left-0 right-0 z-50 bg-slate-950/95 border-t border-slate-800/80 backdrop-blur-md px-4 py-1.5">
-        <div className="max-w-md mx-auto flex items-center justify-around">
-          
-          <button
-            onClick={() => onNavigateTab('dashboard')}
-            className={`flex flex-col items-center gap-0.5 text-[9px] font-mono transition-colors cursor-pointer py-0.5 ${
-              activeMobileTab === 'home' || activeMobileTab === 'dashboard'
-                ? 'text-cyan-400 font-bold'
-                : 'text-slate-500 hover:text-slate-300'
-            }`}
-          >
-            <Home className="w-3.5 h-3.5" />
-            <span>Home</span>
-          </button>
+      {!hideBottomNav && (
+        <div className="fixed bottom-0 left-0 right-0 z-50 bg-slate-950/95 border-t border-slate-800/80 backdrop-blur-md px-4 py-1.5">
+          <div className="max-w-md mx-auto flex items-center justify-around">
+            
+            <button
+              onClick={() => onNavigateTab('dashboard')}
+              className={`flex flex-col items-center gap-0.5 text-[9px] font-mono transition-colors cursor-pointer py-0.5 ${
+                activeMobileTab === 'home' || activeMobileTab === 'dashboard'
+                  ? 'text-cyan-400 font-bold'
+                  : 'text-slate-500 hover:text-slate-300'
+              }`}
+            >
+              <Home className="w-3.5 h-3.5" />
+              <span>Home</span>
+            </button>
 
-          <button
-            onClick={() => onNavigateTab('analyze')}
-            className={`flex flex-col items-center gap-0.5 text-[9px] font-mono transition-colors cursor-pointer py-0.5 ${
-              activeMobileTab === 'analyze'
-                ? 'text-cyan-400 font-bold'
-                : 'text-slate-500 hover:text-slate-300'
-            }`}
-          >
-            <Plus className="w-3.5 h-3.5" />
-            <span>Analyze</span>
-          </button>
+            <button
+              onClick={() => onNavigateTab('analyze')}
+              className={`flex flex-col items-center gap-0.5 text-[9px] font-mono transition-colors cursor-pointer py-0.5 ${
+                activeMobileTab === 'analyze'
+                  ? 'text-cyan-400 font-bold'
+                  : 'text-slate-500 hover:text-slate-300'
+              }`}
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Analyze</span>
+            </button>
 
-          <button
-            onClick={() => onNavigateTab('history')}
-            className={`flex flex-col items-center gap-0.5 text-[9px] font-mono transition-colors cursor-pointer py-0.5 ${
-              activeMobileTab === 'history'
-                ? 'text-cyan-400 font-bold'
-                : 'text-slate-500 hover:text-slate-300'
-            }`}
-          >
-            <FileText className="w-3.5 h-3.5" />
-            <span>History</span>
-          </button>
+            <button
+              onClick={() => onNavigateTab('history')}
+              className={`flex flex-col items-center gap-0.5 text-[9px] font-mono transition-colors cursor-pointer py-0.5 ${
+                activeMobileTab === 'history'
+                  ? 'text-cyan-400 font-bold'
+                  : 'text-slate-500 hover:text-slate-300'
+              }`}
+            >
+              <FileText className="w-3.5 h-3.5" />
+              <span>History</span>
+            </button>
 
-          <button
-            onClick={() => onNavigateTab('incidents')}
-            className={`flex flex-col items-center gap-0.5 text-[9px] font-mono transition-colors cursor-pointer py-0.5 relative ${
-              activeMobileTab === 'incidents'
-                ? 'text-red-400 font-bold'
-                : 'text-slate-500 hover:text-slate-300'
-            }`}
-          >
-            <div className="relative">
-              <Bell className="w-3.5 h-3.5 text-red-400" />
-              <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-red-500 animate-ping" />
-            </div>
-            <span className="text-red-400">Alerts</span>
-          </button>
+            <button
+              onClick={() => onNavigateTab('incidents')}
+              className={`flex flex-col items-center gap-0.5 text-[9px] font-mono transition-colors cursor-pointer py-0.5 relative ${
+                activeMobileTab === 'incidents'
+                  ? 'text-red-400 font-bold'
+                  : 'text-slate-500 hover:text-slate-300'
+              }`}
+            >
+              <div className="relative">
+                <Bell className="w-3.5 h-3.5 text-red-400" />
+                <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-red-500 animate-ping" />
+              </div>
+              <span className="text-red-400">Alerts</span>
+            </button>
 
-          <button
-            onClick={() => onNavigateTab('settings')}
-            className={`flex flex-col items-center gap-0.5 text-[9px] font-mono transition-colors cursor-pointer py-0.5 ${
-              activeMobileTab === 'settings'
-                ? 'text-cyan-400 font-bold'
-                : 'text-slate-500 hover:text-slate-300'
-            }`}
-          >
-            <SlidersHorizontal className="w-3.5 h-3.5" />
-            <span>Settings</span>
-          </button>
+            <button
+              onClick={() => onNavigateTab('settings')}
+              className={`flex flex-col items-center gap-0.5 text-[9px] font-mono transition-colors cursor-pointer py-0.5 ${
+                activeMobileTab === 'settings'
+                  ? 'text-cyan-400 font-bold'
+                  : 'text-slate-500 hover:text-slate-300'
+              }`}
+            >
+              <SlidersHorizontal className="w-3.5 h-3.5" />
+              <span>Settings</span>
+            </button>
 
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Independent Verification Safe Helpline Directory Modal */}
       {isVerifyModalOpen && (

@@ -19,6 +19,7 @@ import {
   Clock,
   Home,
   FileText,
+  FileDown,
   Bell,
   User,
   ExternalLink,
@@ -28,7 +29,8 @@ import {
   SlidersHorizontal
 } from 'lucide-react';
 import { AnalysisRecord, ModalityType } from '../types';
-import { UserProfile } from '../types/user';
+import { ThemeMode, UserProfile } from '../types/user';
+import { LogoDropdown } from './LogoDropdown';
 import avatarImg from '../assets/images/avatar_security_analyst_1791195961743.jpg';
 
 interface MobileDashboardViewProps {
@@ -42,6 +44,15 @@ interface MobileDashboardViewProps {
   records?: AnalysisRecord[];
   activeMobileTab?: string;
   onMobileTabChange?: (tab: string) => void;
+  currentTheme?: ThemeMode;
+  onThemeChange?: (theme: ThemeMode) => void;
+  onOpenChangePassword?: () => void;
+  onOpenChangeNumber?: () => void;
+  onExportAuditLog?: () => void;
+  onSaveState?: () => void;
+  saveStatus?: 'idle' | 'saving' | 'saved';
+  hideHeader?: boolean;
+  hideBottomNav?: boolean;
 }
 
 export const MobileDashboardView: React.FC<MobileDashboardViewProps> = ({
@@ -54,7 +65,16 @@ export const MobileDashboardView: React.FC<MobileDashboardViewProps> = ({
   onOpenProfile,
   records,
   activeMobileTab = 'home',
-  onMobileTabChange = () => {}
+  onMobileTabChange = () => {},
+  currentTheme = 'dark',
+  onThemeChange = () => {},
+  onOpenChangePassword = () => {},
+  onOpenChangeNumber = () => {},
+  onExportAuditLog = () => {},
+  onSaveState,
+  saveStatus = 'idle',
+  hideHeader = false,
+  hideBottomNav = false
 }) => {
   // 5 Quick Analysis touch-friendly buttons
   const quickAnalysisOptions = [
@@ -149,61 +169,74 @@ export const MobileDashboardView: React.FC<MobileDashboardViewProps> = ({
       {/* ============================================================ */}
       {/* 1. TOP MOBILE HEADER                                         */}
       {/* ============================================================ */}
-      <div className="flex items-center justify-between py-2 border-b border-slate-800/80">
-        {/* VERITY Logo */}
-        <div className="flex items-center gap-1.5">
-          <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-cyan-500/20 via-blue-600/20 to-slate-900 border border-cyan-500/40 flex items-center justify-center shadow-[0_0_10px_rgba(6,182,212,0.2)] shrink-0">
-            <Shield className="w-3.5 h-3.5 text-cyan-400" />
-          </div>
-          <span className="text-base font-bold tracking-tight text-white font-sans">
-            VERITY
-          </span>
-        </div>
-
-        {/* Right side: Interactive Protection Toggle + Settings + Profile Avatar */}
-        <div className="flex items-center gap-2">
-          {/* Protection Active / Pause Button */}
-          <button
-            onClick={onToggleProtection}
-            title={protectionActive ? "Tap to Pause Protection" : "Tap to Enable Protection"}
-            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-mono font-semibold border transition-all cursor-pointer select-none active:scale-95 ${
-              protectionActive
-                ? 'bg-emerald-950/60 border-emerald-500/40 text-emerald-300'
-                : 'bg-amber-950/60 border-amber-500/40 text-amber-300'
-            }`}
-          >
-            <span className={`w-2 h-2 rounded-full shrink-0 ${protectionActive ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`} />
-            <span>{protectionActive ? 'Active' : 'Paused'}</span>
-            <span className={`text-[9px] px-1 py-0.2 rounded font-sans font-bold ${
-              protectionActive ? 'bg-emerald-500/20 text-emerald-200' : 'bg-amber-500/20 text-amber-200'
-            }`}>
-              {protectionActive ? 'Pause' : 'Enable'}
-            </span>
-          </button>
-
-          {/* Quick Settings Shortcut */}
-          <button
-            onClick={() => onNavigateTab('settings')}
-            title="System Settings"
-            className="p-1.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-400 hover:text-cyan-300 transition-colors cursor-pointer shrink-0 flex items-center justify-center"
-          >
-            <SlidersHorizontal className="w-3.5 h-3.5" />
-          </button>
-
-          {/* Perfectly Aligned Profile Avatar Photo */}
-          <button
-            onClick={onOpenProfile}
-            title="User Profile"
-            className="w-7 h-7 rounded-full overflow-hidden border border-cyan-500/40 bg-slate-800 flex items-center justify-center shadow-sm cursor-pointer relative shrink-0"
-          >
-            <img
-              src={avatarImg}
-              alt={user.name}
-              className="w-full h-full object-cover object-center"
+      {!hideHeader && (
+        <div className="flex items-center justify-between py-2 border-b border-slate-800/80">
+          {/* Interactive Logo Dropdown (Theme, Password, Number, Export) */}
+          <div className="shrink-0">
+            <LogoDropdown
+              currentTheme={currentTheme}
+              onThemeChange={onThemeChange}
+              onOpenChangePassword={onOpenChangePassword}
+              onOpenChangeNumber={onOpenChangeNumber}
+              onExportAuditLog={onExportAuditLog}
             />
-          </button>
+          </div>
+
+          {/* Right side: Interactive Protection Toggle + Save/Export Audit Log + Profile Avatar */}
+          <div className="flex items-center gap-2">
+            {/* Protection Active / Pause Button */}
+            <button
+              onClick={onToggleProtection}
+              title={protectionActive ? "Tap to Pause Protection" : "Tap to Enable Protection"}
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-mono font-semibold border transition-all cursor-pointer select-none active:scale-95 ${
+                protectionActive
+                  ? 'bg-emerald-950/60 border-emerald-500/40 text-emerald-300'
+                  : 'bg-amber-950/60 border-amber-500/40 text-amber-300'
+              }`}
+            >
+              <span className={`w-2 h-2 rounded-full shrink-0 ${protectionActive ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`} />
+              <span>{protectionActive ? 'Active' : 'Paused'}</span>
+              <span className={`text-[9px] px-1 py-0.2 rounded font-sans font-bold ${
+                protectionActive ? 'bg-emerald-500/20 text-emerald-200' : 'bg-amber-500/20 text-amber-200'
+              }`}>
+                {protectionActive ? 'Pause' : 'Enable'}
+              </span>
+            </button>
+
+            {/* Save / Export Security Audit Log (PDF) Button beside Photo Logo */}
+            <button
+              type="button"
+              onClick={onSaveState || onExportAuditLog}
+              title="Export & Save Security Audit Log (PDF)"
+              aria-label="Export & Save Security Audit Log"
+              className={`p-1.5 rounded-lg border transition-colors cursor-pointer shrink-0 flex items-center justify-center active:scale-95 ${
+                saveStatus === 'saved'
+                  ? 'bg-emerald-950 border-emerald-400 text-emerald-300'
+                  : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-cyan-300 hover:border-cyan-500/40'
+              }`}
+            >
+              {saveStatus === 'saved' ? (
+                <span className="text-[10px] font-mono font-bold text-emerald-300">Saved ✓</span>
+              ) : (
+                <FileDown className="w-4 h-4 text-cyan-400" />
+              )}
+            </button>
+
+            {/* Perfectly Aligned Profile Avatar Photo */}
+            <button
+              onClick={onOpenProfile}
+              title="User Profile & Verification"
+              className="w-7 h-7 rounded-full overflow-hidden border border-cyan-500/40 bg-slate-800 flex items-center justify-center shadow-sm cursor-pointer relative shrink-0"
+            >
+              <img
+                src={avatarImg}
+                alt={user.name}
+                className="w-full h-full object-cover object-center"
+              />
+            </button>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* ============================================================ */}
       {/* 2. ZERO-TRUST SHIELD & NEW ANALYSIS CTA                     */}
@@ -483,79 +516,81 @@ export const MobileDashboardView: React.FC<MobileDashboardViewProps> = ({
       {/* ============================================================ */}
       {/* 8. FIXED BOTTOM NAVIGATION (5 TABS)                          */}
       {/* ============================================================ */}
-      <div className="fixed bottom-0 left-0 right-0 z-50 bg-slate-950/95 border-t border-slate-800/80 backdrop-blur-md px-4 py-1.5">
-        <div className="max-w-md mx-auto flex items-center justify-around">
-          
-          {/* 1. Home */}
-          <button
-            onClick={() => onNavigateTab('dashboard')}
-            className={`flex flex-col items-center gap-0.5 text-[9px] font-mono transition-colors cursor-pointer py-0.5 ${
-              activeMobileTab === 'home' || activeMobileTab === 'dashboard'
-                ? 'text-cyan-400 font-bold'
-                : 'text-slate-500 hover:text-slate-300'
-            }`}
-          >
-            <Home className="w-3.5 h-3.5" />
-            <span>Home</span>
-          </button>
+      {!hideBottomNav && (
+        <div className="fixed bottom-0 left-0 right-0 z-50 bg-slate-950/95 border-t border-slate-800/80 backdrop-blur-md px-4 py-1.5">
+          <div className="max-w-md mx-auto flex items-center justify-around">
+            
+            {/* 1. Home */}
+            <button
+              onClick={() => onNavigateTab('dashboard')}
+              className={`flex flex-col items-center gap-0.5 text-[9px] font-mono transition-colors cursor-pointer py-0.5 ${
+                activeMobileTab === 'home' || activeMobileTab === 'dashboard'
+                  ? 'text-cyan-400 font-bold'
+                  : 'text-slate-500 hover:text-slate-300'
+              }`}
+            >
+              <Home className="w-3.5 h-3.5" />
+              <span>Home</span>
+            </button>
 
-          {/* 2. Analyze */}
-          <button
-            onClick={() => onNavigateTab('analyze')}
-            className={`flex flex-col items-center gap-0.5 text-[9px] font-mono transition-colors cursor-pointer py-0.5 ${
-              activeMobileTab === 'analyze'
-                ? 'text-cyan-400 font-bold'
-                : 'text-slate-500 hover:text-slate-300'
-            }`}
-          >
-            <Plus className="w-3.5 h-3.5" />
-            <span>Analyze</span>
-          </button>
+            {/* 2. Analyze */}
+            <button
+              onClick={() => onNavigateTab('analyze')}
+              className={`flex flex-col items-center gap-0.5 text-[9px] font-mono transition-colors cursor-pointer py-0.5 ${
+                activeMobileTab === 'analyze'
+                  ? 'text-cyan-400 font-bold'
+                  : 'text-slate-500 hover:text-slate-300'
+              }`}
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Analyze</span>
+            </button>
 
-          {/* 3. History */}
-          <button
-            onClick={() => onNavigateTab('history')}
-            className={`flex flex-col items-center gap-0.5 text-[9px] font-mono transition-colors cursor-pointer py-0.5 ${
-              activeMobileTab === 'history'
-                ? 'text-cyan-400 font-bold'
-                : 'text-slate-500 hover:text-slate-300'
-            }`}
-          >
-            <FileText className="w-3.5 h-3.5" />
-            <span>History</span>
-          </button>
+            {/* 3. History */}
+            <button
+              onClick={() => onNavigateTab('history')}
+              className={`flex flex-col items-center gap-0.5 text-[9px] font-mono transition-colors cursor-pointer py-0.5 ${
+                activeMobileTab === 'history'
+                  ? 'text-cyan-400 font-bold'
+                  : 'text-slate-500 hover:text-slate-300'
+              }`}
+            >
+              <FileText className="w-3.5 h-3.5" />
+              <span>History</span>
+            </button>
 
-          {/* 4. Alerts (Incidents) */}
-          <button
-            onClick={() => onNavigateTab('incidents')}
-            className={`flex flex-col items-center gap-0.5 text-[9px] font-mono transition-colors cursor-pointer py-0.5 relative ${
-              activeMobileTab === 'incidents'
-                ? 'text-red-400 font-bold'
-                : 'text-slate-500 hover:text-slate-300'
-            }`}
-          >
-            <div className="relative">
-              <Bell className="w-3.5 h-3.5" />
-              <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-red-500 animate-ping" />
-            </div>
-            <span>Alerts</span>
-          </button>
+            {/* 4. Alerts (Incidents) */}
+            <button
+              onClick={() => onNavigateTab('incidents')}
+              className={`flex flex-col items-center gap-0.5 text-[9px] font-mono transition-colors cursor-pointer py-0.5 relative ${
+                activeMobileTab === 'incidents'
+                  ? 'text-red-400 font-bold'
+                  : 'text-slate-500 hover:text-slate-300'
+              }`}
+            >
+              <div className="relative">
+                <Bell className="w-3.5 h-3.5" />
+                <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-red-500 animate-ping" />
+              </div>
+              <span>Alerts</span>
+            </button>
 
-          {/* 5. Settings */}
-          <button
-            onClick={() => onNavigateTab('settings')}
-            className={`flex flex-col items-center gap-0.5 text-[9px] font-mono transition-colors cursor-pointer py-0.5 ${
-              activeMobileTab === 'settings'
-                ? 'text-cyan-400 font-bold'
-                : 'text-slate-500 hover:text-slate-300'
-            }`}
-          >
-            <SlidersHorizontal className="w-3.5 h-3.5" />
-            <span>Settings</span>
-          </button>
+            {/* 5. Settings */}
+            <button
+              onClick={() => onNavigateTab('settings')}
+              className={`flex flex-col items-center gap-0.5 text-[9px] font-mono transition-colors cursor-pointer py-0.5 ${
+                activeMobileTab === 'settings'
+                  ? 'text-cyan-400 font-bold'
+                  : 'text-slate-500 hover:text-slate-300'
+              }`}
+            >
+              <SlidersHorizontal className="w-3.5 h-3.5" />
+              <span>Settings</span>
+            </button>
 
+          </div>
         </div>
-      </div>
+      )}
 
     </div>
   );

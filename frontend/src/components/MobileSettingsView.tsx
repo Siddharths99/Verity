@@ -46,6 +46,8 @@ interface MobileSettingsViewProps {
   onNavigateTab: (tab: string) => void;
   onOpenProfile: () => void;
   activeMobileTab?: string;
+  hideHeader?: boolean;
+  hideBottomNav?: boolean;
 }
 
 export const MobileSettingsView: React.FC<MobileSettingsViewProps> = ({
@@ -61,7 +63,9 @@ export const MobileSettingsView: React.FC<MobileSettingsViewProps> = ({
   onExportAuditLog,
   onNavigateTab,
   onOpenProfile,
-  activeMobileTab = 'settings'
+  activeMobileTab = 'settings',
+  hideHeader = false,
+  hideBottomNav = false
 }) => {
   const [userSettings, setUserSettings] = useState<UserSettings>(() => getUserSettings());
   const [attestationLevel, setAttestationLevel] = useState<string>(() => userSettings.attestationLevel);
@@ -105,30 +109,46 @@ export const MobileSettingsView: React.FC<MobileSettingsViewProps> = ({
     <div className="w-full max-w-full sm:max-w-md mx-auto pb-24 space-y-4 animate-fadeIn">
       
       {/* ============================================================ */}
-      {/* 1. TOP MOBILE HEADER WITH HIGH-VISIBILITY BACK BUTTON        */}
+      {/* 1. TOP MOBILE HEADER / SUB-HEADER                            */}
       {/* ============================================================ */}
-      <div className="flex items-center justify-between py-1.5 border-b border-slate-800/80">
-        <button
-          onClick={() => onNavigateTab('dashboard')}
-          className="flex items-center gap-1.5 text-xs font-bold text-white bg-slate-900 border-2 border-cyan-400 hover:bg-cyan-950/80 hover:border-cyan-300 px-3 py-1.5 rounded-xl transition-all shadow-[0_0_15px_rgba(6,182,212,0.45)] cursor-pointer active:scale-95"
-          title="Back to dashboard"
-        >
-          <ChevronLeft className="w-4 h-4 stroke-[3] text-cyan-400" />
-          <span className="tracking-wide">Back</span>
-        </button>
+      {!hideHeader ? (
+        <div className="flex items-center justify-between py-1.5 border-b border-slate-800/80">
+          <button
+            onClick={() => onNavigateTab('dashboard')}
+            className="flex items-center gap-1.5 text-xs font-bold text-white bg-slate-900 border-2 border-cyan-400 hover:bg-cyan-950/80 hover:border-cyan-300 px-3 py-1.5 rounded-xl transition-all shadow-[0_0_15px_rgba(6,182,212,0.45)] cursor-pointer active:scale-95"
+            title="Back to dashboard"
+          >
+            <ChevronLeft className="w-4 h-4 stroke-[3] text-cyan-400" />
+            <span className="tracking-wide">Back</span>
+          </button>
 
-        <h1 className="text-sm font-bold text-white tracking-tight font-sans">
-          Protection & Settings
-        </h1>
+          <h1 className="text-sm font-bold text-white tracking-tight font-sans">
+            Protection & Settings
+          </h1>
 
-        <button
-          onClick={handleSave}
-          className="px-3 py-1.5 rounded-xl text-xs font-bold bg-cyan-400 text-slate-950 hover:bg-cyan-300 transition-all flex items-center gap-1 shadow-sm cursor-pointer"
-        >
-          <Save className="w-3.5 h-3.5" />
-          <span>{isSaved ? 'Saved' : 'Save'}</span>
-        </button>
-      </div>
+          <button
+            onClick={handleSave}
+            className="px-3 py-1.5 rounded-xl text-xs font-bold bg-cyan-400 text-slate-950 hover:bg-cyan-300 transition-all flex items-center gap-1 shadow-sm cursor-pointer"
+          >
+            <Save className="w-3.5 h-3.5" />
+            <span>{isSaved ? 'Saved' : 'Save'}</span>
+          </button>
+        </div>
+      ) : (
+        <div className="flex items-center justify-between py-1 border-b border-slate-800/80">
+          <h1 className="text-sm font-bold text-white tracking-tight font-sans">
+            Protection & Settings
+          </h1>
+
+          <button
+            onClick={handleSave}
+            className="px-3 py-1.5 rounded-xl text-xs font-bold bg-cyan-400 text-slate-950 hover:bg-cyan-300 transition-all flex items-center gap-1 shadow-sm cursor-pointer"
+          >
+            <Save className="w-3.5 h-3.5" />
+            <span>{isSaved ? 'Saved' : 'Save'}</span>
+          </button>
+        </div>
+      )}
 
       {/* ============================================================ */}
       {/* 2. VERIFIED CITIZEN ACCOUNT & SIM OPERATOR CARD              */}
@@ -490,74 +510,76 @@ export const MobileSettingsView: React.FC<MobileSettingsViewProps> = ({
       {/* ============================================================ */}
       {/* 7. FIXED BOTTOM NAVIGATION BAR (5 TABS)                      */}
       {/* ============================================================ */}
-      <div className="fixed bottom-0 left-0 right-0 z-50 bg-slate-950/95 border-t border-slate-800/80 backdrop-blur-md px-4 py-1.5">
-        <div className="max-w-md mx-auto flex items-center justify-around">
-          
-          <button
-            onClick={() => onNavigateTab('dashboard')}
-            className={`flex flex-col items-center gap-0.5 text-[9px] font-mono transition-colors cursor-pointer py-0.5 ${
-              activeMobileTab === 'home' || activeMobileTab === 'dashboard'
-                ? 'text-cyan-400 font-bold'
-                : 'text-slate-500 hover:text-slate-300'
-            }`}
-          >
-            <Home className="w-3.5 h-3.5" />
-            <span>Home</span>
-          </button>
+      {!hideBottomNav && (
+        <div className="fixed bottom-0 left-0 right-0 z-50 bg-slate-950/95 border-t border-slate-800/80 backdrop-blur-md px-4 py-1.5">
+          <div className="max-w-md mx-auto flex items-center justify-around">
+            
+            <button
+              onClick={() => onNavigateTab('dashboard')}
+              className={`flex flex-col items-center gap-0.5 text-[9px] font-mono transition-colors cursor-pointer py-0.5 ${
+                activeMobileTab === 'home' || activeMobileTab === 'dashboard'
+                  ? 'text-cyan-400 font-bold'
+                  : 'text-slate-500 hover:text-slate-300'
+              }`}
+            >
+              <Home className="w-3.5 h-3.5" />
+              <span>Home</span>
+            </button>
 
-          <button
-            onClick={() => onNavigateTab('analyze')}
-            className={`flex flex-col items-center gap-0.5 text-[9px] font-mono transition-colors cursor-pointer py-0.5 ${
-              activeMobileTab === 'analyze'
-                ? 'text-cyan-400 font-bold'
-                : 'text-slate-500 hover:text-slate-300'
-            }`}
-          >
-            <Plus className="w-3.5 h-3.5" />
-            <span>Analyze</span>
-          </button>
+            <button
+              onClick={() => onNavigateTab('analyze')}
+              className={`flex flex-col items-center gap-0.5 text-[9px] font-mono transition-colors cursor-pointer py-0.5 ${
+                activeMobileTab === 'analyze'
+                  ? 'text-cyan-400 font-bold'
+                  : 'text-slate-500 hover:text-slate-300'
+              }`}
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Analyze</span>
+            </button>
 
-          <button
-            onClick={() => onNavigateTab('history')}
-            className={`flex flex-col items-center gap-0.5 text-[9px] font-mono transition-colors cursor-pointer py-0.5 ${
-              activeMobileTab === 'history'
-                ? 'text-cyan-400 font-bold'
-                : 'text-slate-500 hover:text-slate-300'
-            }`}
-          >
-            <FileText className="w-3.5 h-3.5" />
-            <span>History</span>
-          </button>
+            <button
+              onClick={() => onNavigateTab('history')}
+              className={`flex flex-col items-center gap-0.5 text-[9px] font-mono transition-colors cursor-pointer py-0.5 ${
+                activeMobileTab === 'history'
+                  ? 'text-cyan-400 font-bold'
+                  : 'text-slate-500 hover:text-slate-300'
+              }`}
+            >
+              <FileText className="w-3.5 h-3.5" />
+              <span>History</span>
+            </button>
 
-          <button
-            onClick={() => onNavigateTab('incidents')}
-            className={`flex flex-col items-center gap-0.5 text-[9px] font-mono transition-colors cursor-pointer py-0.5 relative ${
-              activeMobileTab === 'incidents'
-                ? 'text-red-400 font-bold'
-                : 'text-slate-500 hover:text-slate-300'
-            }`}
-          >
-            <div className="relative">
-              <Bell className="w-3.5 h-3.5" />
-              <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-red-500 animate-ping" />
-            </div>
-            <span>Alerts</span>
-          </button>
+            <button
+              onClick={() => onNavigateTab('incidents')}
+              className={`flex flex-col items-center gap-0.5 text-[9px] font-mono transition-colors cursor-pointer py-0.5 relative ${
+                activeMobileTab === 'incidents'
+                  ? 'text-red-400 font-bold'
+                  : 'text-slate-500 hover:text-slate-300'
+              }`}
+            >
+              <div className="relative">
+                <Bell className="w-3.5 h-3.5" />
+                <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-red-500 animate-ping" />
+              </div>
+              <span>Alerts</span>
+            </button>
 
-          <button
-            onClick={() => onNavigateTab('settings')}
-            className={`flex flex-col items-center gap-0.5 text-[9px] font-mono transition-colors cursor-pointer py-0.5 ${
-              activeMobileTab === 'settings'
-                ? 'text-cyan-400 font-bold'
-                : 'text-slate-500 hover:text-slate-300'
-            }`}
-          >
-            <SlidersHorizontal className="w-3.5 h-3.5" />
-            <span>Settings</span>
-          </button>
+            <button
+              onClick={() => onNavigateTab('settings')}
+              className={`flex flex-col items-center gap-0.5 text-[9px] font-mono transition-colors cursor-pointer py-0.5 ${
+                activeMobileTab === 'settings'
+                  ? 'text-cyan-400 font-bold'
+                  : 'text-slate-500 hover:text-slate-300'
+              }`}
+            >
+              <SlidersHorizontal className="w-3.5 h-3.5" />
+              <span>Settings</span>
+            </button>
 
+          </div>
         </div>
-      </div>
+      )}
 
     </div>
   );

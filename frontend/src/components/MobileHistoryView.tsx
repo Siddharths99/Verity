@@ -31,6 +31,7 @@ interface MobileHistoryViewProps {
   onNavigateTab: (tab: string) => void;
   onExportAuditLog: () => void;
   activeMobileTab?: string;
+  hideHeader?: boolean;
 }
 
 export const MobileHistoryView: React.FC<MobileHistoryViewProps> = ({
@@ -38,7 +39,8 @@ export const MobileHistoryView: React.FC<MobileHistoryViewProps> = ({
   onSelectRecord,
   onNavigateTab,
   onExportAuditLog,
-  activeMobileTab = 'history'
+  activeMobileTab = 'history',
+  hideHeader = false
 }) => {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedFilter, setSelectedFilter] = useState<string>('All');
@@ -258,35 +260,57 @@ export const MobileHistoryView: React.FC<MobileHistoryViewProps> = ({
   return (
     <div className="w-full max-w-full sm:max-w-md mx-auto pb-28 sm:pb-32 space-y-4 animate-fadeIn overflow-x-hidden">
       
-      {/* Top Header with High-Visibility Back Button and Export Action */}
-      <div className="flex items-center justify-between py-1.5 border-b border-slate-800/80">
-        <button
-          onClick={() => onNavigateTab('dashboard')}
-          className="flex items-center gap-1.5 text-xs font-bold text-white bg-slate-900 border-2 border-cyan-400 hover:bg-cyan-950/80 hover:border-cyan-300 px-3 py-1.5 rounded-xl transition-all shadow-[0_0_15px_rgba(6,182,212,0.45)] cursor-pointer active:scale-95"
-          title="Back to dashboard"
-        >
-          <ChevronLeft className="w-4 h-4 stroke-[3] text-cyan-400" />
-          <span className="tracking-wide">Back</span>
-        </button>
+      {/* Top Header / Sub-Header Action Bar */}
+      {!hideHeader ? (
+        <div className="flex items-center justify-between py-1.5 border-b border-slate-800/80">
+          <button
+            onClick={() => onNavigateTab('dashboard')}
+            className="flex items-center gap-1.5 text-xs font-bold text-white bg-slate-900 border-2 border-cyan-400 hover:bg-cyan-950/80 hover:border-cyan-300 px-3 py-1.5 rounded-xl transition-all shadow-[0_0_15px_rgba(6,182,212,0.45)] cursor-pointer active:scale-95"
+            title="Back to dashboard"
+          >
+            <ChevronLeft className="w-4 h-4 stroke-[3] text-cyan-400" />
+            <span className="tracking-wide">Back</span>
+          </button>
 
-        <div className="text-center">
-          <h1 className="text-sm font-bold text-white tracking-tight font-sans">
-            Forensic Audit Ledger
-          </h1>
-          <span className="text-[9px] font-mono text-cyan-400 font-bold">
-            {filteredRecords.length} {filteredRecords.length === 1 ? 'Interaction' : 'Interactions'} ({selectedDateFilter})
-          </span>
+          <div className="text-center">
+            <h1 className="text-sm font-bold text-white tracking-tight font-sans">
+              Forensic Audit Ledger
+            </h1>
+            <span className="text-[9px] font-mono text-cyan-400 font-bold">
+              {filteredRecords.length} {filteredRecords.length === 1 ? 'Interaction' : 'Interactions'} ({selectedDateFilter})
+            </span>
+          </div>
+
+          <button
+            onClick={onExportAuditLog}
+            title="Export All Cryptographic PDF Reports"
+            className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-cyan-950/80 border border-cyan-500/40 text-cyan-300 hover:bg-cyan-900 transition-colors cursor-pointer text-[10px] font-mono font-bold shadow-sm"
+          >
+            <Download className="w-3.5 h-3.5" />
+            <span>Export All</span>
+          </button>
         </div>
+      ) : (
+        <div className="flex items-center justify-between py-1 border-b border-slate-800/80">
+          <div>
+            <h1 className="text-sm font-bold text-white tracking-tight font-sans">
+              Forensic Audit Ledger
+            </h1>
+            <span className="text-[9px] font-mono text-cyan-400 font-bold">
+              {filteredRecords.length} {filteredRecords.length === 1 ? 'Interaction' : 'Interactions'} ({selectedDateFilter})
+            </span>
+          </div>
 
-        <button
-          onClick={onExportAuditLog}
-          title="Export All Cryptographic PDF Reports"
-          className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-cyan-950/80 border border-cyan-500/40 text-cyan-300 hover:bg-cyan-900 transition-colors cursor-pointer text-[10px] font-mono font-bold shadow-sm"
-        >
-          <Download className="w-3.5 h-3.5" />
-          <span>Export All</span>
-        </button>
-      </div>
+          <button
+            onClick={onExportAuditLog}
+            title="Export All Cryptographic PDF Reports"
+            className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-cyan-950/80 border border-cyan-500/40 text-cyan-300 hover:bg-cyan-900 transition-colors cursor-pointer text-[10px] font-mono font-bold shadow-sm"
+          >
+            <Download className="w-3.5 h-3.5" />
+            <span>Export All</span>
+          </button>
+        </div>
+      )}
 
       {/* Dynamic Telemetry Banner */}
       <div className="grid grid-cols-3 gap-2 text-center">

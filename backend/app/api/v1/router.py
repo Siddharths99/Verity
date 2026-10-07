@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from app.api.v1.endpoints import text, audio, media, url, analyze, incidents, call_protection
+from app.api.v1.endpoints import text, audio, media, url, analyze, incidents, call_protection, copilot
 
 api_router = APIRouter()
 
@@ -12,6 +12,9 @@ api_router.include_router(url.router, prefix="/analyze", tags=["URL & Phishing C
 
 # Call Protection & Real-time Live Intercept Routes
 api_router.include_router(call_protection.router, prefix="/call-protection", tags=["Call Protection & Caller ID"])
+
+# AI Copilot Chat Routes
+api_router.include_router(copilot.router, prefix="/copilot", tags=["AI Copilot Chat"])
 
 # Incident & Storage Routes
 api_router.include_router(incidents.router, prefix="/incidents", tags=["Incidents & History"])

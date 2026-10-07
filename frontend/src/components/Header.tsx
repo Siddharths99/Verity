@@ -1,6 +1,6 @@
 import { LogoDropdown } from './LogoDropdown';
 import { ThemeMode, UserProfile } from '../types/user';
-import { FileDown, ChevronDown, PhoneCall } from 'lucide-react';
+import { ChevronDown, Save, Check } from 'lucide-react';
 import avatarImg from '../assets/images/avatar_security_analyst_1791195961743.jpg';
 
 interface HeaderProps {
@@ -16,6 +16,8 @@ interface HeaderProps {
   onOpenChangeNumber: () => void;
   onOpenProfile: () => void;
   onExportAuditLog: () => void;
+  onSaveState?: () => void;
+  saveStatus?: 'idle' | 'saving' | 'saved';
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -30,7 +32,9 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenChangePassword,
   onOpenChangeNumber,
   onOpenProfile,
-  onExportAuditLog
+  onExportAuditLog,
+  onSaveState,
+  saveStatus = 'idle'
 }) => {
   const navItems = [
     { id: 'dashboard', label: 'Dashboard' },
@@ -121,15 +125,29 @@ export const Header: React.FC<HeaderProps> = ({
             </span>
           </button>
 
-          {/* Export Security Audit Logs Button */}
+          {/* Button beside photo logo: Acts as Save option */}
           <button 
             type="button"
-            onClick={onExportAuditLog}
-            title="Export Security Audit Logs (PDF)"
-            aria-label="Export Security Audit Logs"
-            className="hidden sm:flex items-center justify-center w-8 h-8 rounded-lg border border-slate-800 dark:border-slate-800 bg-slate-900/60 dark:bg-slate-900/60 text-slate-400 hover:text-cyan-300 hover:border-cyan-500/40 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 transition-all cursor-pointer shrink-0"
+            onClick={onSaveState || onExportAuditLog}
+            title="Save System State & Export Audit Dossier"
+            aria-label="Save System State"
+            className={`hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border font-mono text-xs font-semibold transition-all cursor-pointer shrink-0 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 ${
+              saveStatus === 'saved'
+                ? 'bg-emerald-950/80 border-emerald-400 text-emerald-300 shadow-[0_0_12px_rgba(16,185,129,0.3)]'
+                : 'bg-slate-900/80 border-slate-700/80 hover:border-cyan-400 text-slate-300 hover:text-cyan-300'
+            }`}
           >
-            <FileDown className="w-4 h-4" />
+            {saveStatus === 'saved' ? (
+              <>
+                <Check className="w-3.5 h-3.5 text-emerald-400 stroke-[3]" />
+                <span className="text-emerald-300">Saved</span>
+              </>
+            ) : (
+              <>
+                <Save className="w-3.5 h-3.5 text-cyan-400" />
+                <span className="text-cyan-300">Save</span>
+              </>
+            )}
           </button>
 
           {/* Unified Profile Control: [ Profile Avatar + Chevron ] */}

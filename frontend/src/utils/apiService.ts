@@ -469,4 +469,26 @@ export const apiService = {
     }
     return res.json();
   },
+
+  /**
+   * Interact with the VERITY AI Security Copilot powered by Gemini
+   */
+  async chatCopilot(
+    message: string,
+    history?: Array<{ sender: 'user' | 'assistant'; text: string }>
+  ): Promise<{
+    reply: string;
+    suggested_actions?: Array<{ label: string; modality: 'call' | 'voice' | 'message' | 'media' | 'url' }>;
+    model_used?: string;
+  }> {
+    const res = await fetch(`${API_BASE}/copilot/chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message, history: history || [] })
+    });
+    if (!res.ok) {
+      throw new Error(`Copilot API responded with status ${res.status}`);
+    }
+    return res.json();
+  },
 };
