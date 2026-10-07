@@ -29,7 +29,7 @@ import { AnalysisRecord, ModalityType } from './types';
 import { ThemeMode, UserProfile, INITIAL_USER_PROFILE } from './types/user';
 import { exportAuditLogToPdf } from './utils/pdfExport';
 import { apiService, mapBackendIncidentToAnalysisRecord } from './utils/apiService';
-import { CheckCircle2, ShieldAlert, Info, Smartphone, Monitor, X } from 'lucide-react';
+import { Smartphone, Monitor } from 'lucide-react';
 
 const STORAGE_KEY = 'verity_analysis_records_v3';
 
@@ -98,7 +98,6 @@ export default function App() {
   const [isChangeNumberOpen, setIsChangeNumberOpen] = useState<boolean>(false);
   const [isOtpModalOpen, setIsOtpModalOpen] = useState<boolean>(false);
   const [otpModalType, setOtpModalType] = useState<'phone' | 'email'>('phone');
-  const [toastMessage, setToastMessage] = useState<{ text: string; type: 'success' | 'alert' | 'info' } | null>(null);
 
   // Dedicated Action Modals State (Verify Independently, Block Sender, Report Fraud 1930)
   const [isVerifyModalOpen, setIsVerifyModalOpen] = useState<boolean>(false);
@@ -168,8 +167,6 @@ export default function App() {
     let mounted = true;
     apiService.checkHealth().then((isHealthy) => {
       if (mounted && isHealthy) {
-        showToast('⚡ Live FastAPI Backend Connected (http://localhost:8000)', 'success');
-        
         // Fetch and merge scan history from backend SQLite database
         apiService.fetchIncidents(100, 0).then((incidents) => {
           if (!mounted || !incidents || incidents.length === 0) return;
@@ -201,12 +198,8 @@ export default function App() {
     };
   }, []);
 
-  const showToast = (text: string, type: 'success' | 'alert' | 'info' = 'info') => {
-    setToastMessage({ text, type });
-    setTimeout(() => {
-      setToastMessage(null);
-    }, 4000);
-  };
+  // Pop-up notifications disabled per user preference
+  const showToast = (_text?: string, _type: 'success' | 'alert' | 'info' = 'info') => {};
 
   const handleToggleProtection = () => {
     setProtectionActive((prev) => {
@@ -800,33 +793,6 @@ export default function App() {
           onClose={() => setIsQuickAnalysisOpen(false)}
           onAnalysisComplete={handleAnalysisComplete}
         />
-      )}
-
-      {/* Centered Action Notification (Middle of the Screen) */}
-      {toastMessage && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/40 backdrop-blur-xs pointer-events-none animate-fadeIn">
-          <div className={`flex items-center gap-3.5 px-5 py-4 rounded-2xl border-2 text-sm font-semibold shadow-[0_0_50px_rgba(0,0,0,0.8)] backdrop-blur-xl max-w-md w-full pointer-events-auto transition-all ${
-            toastMessage.type === 'success' ? 'bg-slate-900/95 border-emerald-500 text-emerald-100 shadow-[0_0_30px_rgba(16,185,129,0.35)]' :
-            toastMessage.type === 'alert' ? 'bg-slate-900/95 border-red-500 text-red-100 shadow-[0_0_30px_rgba(239,68,68,0.35)]' :
-            'bg-slate-900/95 border-cyan-500 text-cyan-100 shadow-[0_0_30px_rgba(6,182,212,0.35)]'
-          }`}>
-            {toastMessage.type === 'success' && <CheckCircle2 className="w-6 h-6 text-emerald-400 shrink-0" />}
-            {toastMessage.type === 'alert' && <ShieldAlert className="w-6 h-6 text-red-400 shrink-0" />}
-            {toastMessage.type === 'info' && <Info className="w-6 h-6 text-cyan-400 shrink-0" />}
-            <div className="flex-1 space-y-0.5">
-              <span className="text-[10px] font-mono uppercase tracking-wider block text-slate-400 font-bold">
-                {toastMessage.type === 'success' ? 'Security Action Verified' : toastMessage.type === 'alert' ? 'Security Alert' : 'System Telemetry'}
-              </span>
-              <span className="text-xs sm:text-sm font-medium leading-snug block text-slate-100">{toastMessage.text}</span>
-            </div>
-            <button 
-              onClick={() => setToastMessage(null)}
-              className="p-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors cursor-pointer shrink-0"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
       )}
 
     </div>
